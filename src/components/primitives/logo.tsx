@@ -17,7 +17,14 @@ export function Logo({
   const src = variant === "gradient" ? "/logo-gradient.png" : "/logo-mono.png";
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
-      <Image src={src} alt="Ajentify" width={size} height={size} priority />
+      <Image
+        src={src}
+        alt="Ajentify"
+        width={size}
+        height={size}
+        priority
+        style={{ width: size, height: size }}
+      />
       {withWordmark && (
         <span className="font-display text-lg font-semibold tracking-tight">
           Ajentify

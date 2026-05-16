@@ -1,12 +1,20 @@
-export default function DashboardHomePlaceholderPage() {
+import Link from "next/link";
+import { PageHeader } from "@/components/blocks/page-header";
+
+export default function DashboardHomePage() {
   return (
-    <section className="container mx-auto max-w-5xl px-6 py-16">
-      <h1 className="font-display text-3xl font-bold tracking-tight">
-        Dashboard
-      </h1>
-      <p className="text-muted-foreground mt-2 text-sm">
-        Dashboard home ships in Phase 4.
-      </p>
-    </section>
+    <div className="space-y-6">
+      <PageHeader
+        title="Overview"
+        subtitle="Monitor and orchestrate your agent systems."
+      />
+      <div className="text-muted-foreground rounded-lg border p-12 text-center">
+        Dashboard coming soon. Head to{" "}
+        <Link href="/app/agents" className="text-foreground underline">
+          Agents
+        </Link>{" "}
+        to get started.
+      </div>
+    </div>
   );
 }

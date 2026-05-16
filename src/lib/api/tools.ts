@@ -1,0 +1,8 @@
+import { api } from "./client";
+import type { ApiTool, GetToolsResponse } from "@/types/api";
+
+export const toolsApi = {
+  list: (org_id?: string) =>
+    api.get<GetToolsResponse>("/tools", { query: { org_id } }),
+  get: (tool_id: string) => api.get<ApiTool>(`/tool/${tool_id}`),
+};

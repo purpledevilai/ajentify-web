@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/primitives/button";
+import { GoogleIcon, MicrosoftIcon } from "@/components/primitives/brand-icons";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +52,7 @@ export default function SignUpPage() {
           className="w-full"
           onClick={() => startOAuth("google")}
         >
+          <GoogleIcon className="size-5" />
           Continue with Google
         </Button>
         <Button
@@ -59,6 +61,7 @@ export default function SignUpPage() {
           className="w-full"
           onClick={() => startOAuth("microsoft")}
         >
+          <MicrosoftIcon className="size-5" />
           Continue with Microsoft
         </Button>
       </div>

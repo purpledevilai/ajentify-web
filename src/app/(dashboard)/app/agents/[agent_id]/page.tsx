@@ -194,7 +194,7 @@ export default function AgentBuilderPage() {
 
       <BuilderSection title="Model" description="LLM that powers this agent.">
         <Select
-          value={form.model_id ?? undefined}
+          value={form.model_id}
           onValueChange={(v) =>
             setField("model_id", typeof v === "string" ? v : null)
           }

@@ -29,12 +29,12 @@ export default function DashboardLayout({
   if (!bootstrapped) {
     return (
       <div className="flex min-h-screen">
-        <aside className="bg-sidebar border-sidebar-border w-60 space-y-3 border-r p-4">
+        <aside className="bg-sidebar border-sidebar-border hidden w-60 space-y-3 border-r p-4 md:block">
           <Skeleton className="h-8 w-24" />
           <Skeleton className="h-6 w-full" />
           <Skeleton className="h-6 w-full" />
         </aside>
-        <main className="flex-1 space-y-4 p-8">
+        <main className="flex-1 space-y-4 p-4 md:p-8">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-32 w-full" />
         </main>
@@ -45,10 +45,10 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen">
-      <SidebarNav />
-      <div className="flex flex-1 flex-col">
+      <SidebarNav className="hidden md:flex" />
+      <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

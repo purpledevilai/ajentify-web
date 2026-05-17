@@ -17,11 +17,26 @@ const items: Array<{
   { href: "/docs", label: "Docs", icon: FileText },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({
+  className,
+  onNavigate,
+}: {
+  className?: string;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   return (
-    <aside className="bg-sidebar border-sidebar-border flex w-60 flex-col gap-2 border-r p-4">
-      <Link href="/app" className="mb-4 inline-flex items-center gap-2">
+    <aside
+      className={cn(
+        "bg-sidebar border-sidebar-border flex w-60 flex-col gap-2 border-r p-4",
+        className
+      )}
+    >
+      <Link
+        href="/app"
+        onClick={onNavigate}
+        className="mb-4 inline-flex items-center gap-2"
+      >
         <Logo withWordmark />
       </Link>
       <nav className="flex flex-col gap-1">
@@ -32,6 +47,7 @@ export function SidebarNav() {
             <Link
               key={href}
               href={href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                 active

@@ -7,6 +7,15 @@ interface RequestOpts {
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined | null>;
   signal?: AbortSignal;
+  /**
+   * Opt in to `credentials: "include"` for this request. Only auth endpoints
+   * that set or read the HttpOnly refresh cookie need this. Sending cookies
+   * on every request would force the backend to echo an exact-origin
+   * `Allow-Origin` + `Allow-Credentials: true` on every endpoint; instead we
+   * stay off cookies (and use Bearer tokens) where we can, which keeps the
+   * backend's wildcard CORS valid for non-auth routes.
+   */
+  credentialed?: boolean;
 }
 
 const BASE_URL = () => process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -74,7 +83,7 @@ async function doFetch(
   return fetch(buildUrl(path, opts.query), {
     method: opts.method ?? "GET",
     headers,
-    credentials: "include",
+    credentials: opts.credentialed ? "include" : "omit",
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     signal: opts.signal,
   });
@@ -127,6 +136,12 @@ export const api = {
   // Public variants: no Authorization header, no refresh-on-401.
   publicPost: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body }, false),
+  /**
+   * Public POST that opts in to cookies. Use for auth endpoints that
+   * RETURN a Set-Cookie (login, verify-code, set-new-password, oauth).
+   */
+  credentialedPublicPost: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "POST", body, credentialed: true }, false),
 };
 
 // Exported for tests that need to reset the single-flight slot between cases.

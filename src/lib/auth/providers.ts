@@ -33,33 +33,34 @@ export async function buildAuthUrl(
   return u.toString();
 }
 
-export async function exchangeCodeForIdToken(
-  provider: Provider,
+export const oauthRedirectUri = (): string => REDIRECT_URI();
+
+// Microsoft only. Google's "Web application" OAuth client requires
+// client_secret at /token even with PKCE, so the Google exchange happens
+// server-side via the `/auth` endpoint instead.
+export async function exchangeMicrosoftCodeForIdToken(
   code: string,
   verifier: string
 ): Promise<string> {
-  const clientId =
-    provider === "google"
-      ? process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ""
-      : process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID ?? "";
   const body = new URLSearchParams({
     code,
     redirect_uri: REDIRECT_URI(),
     code_verifier: verifier,
     grant_type: "authorization_code",
-    client_id: clientId,
+    client_id: process.env.NEXT_PUBLIC_MICROSOFT_CLIENT_ID ?? "",
   });
-  const tokenUrl =
-    provider === "google"
-      ? "https://oauth2.googleapis.com/token"
-      : "https://login.microsoftonline.com/common/oauth2/v2.0/token";
-  const res = await fetch(tokenUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-  });
-  if (!res.ok) throw new Error(`${provider} token exchange failed: ${res.status}`);
+  const res = await fetch(
+    "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    }
+  );
+  if (!res.ok)
+    throw new Error(`microsoft token exchange failed: ${res.status}`);
   const json = (await res.json()) as { id_token?: string };
-  if (!json.id_token) throw new Error(`${provider} token exchange missing id_token`);
+  if (!json.id_token)
+    throw new Error("microsoft token exchange missing id_token");
   return json.id_token;
 }

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { authApi } from "@/lib/api/auth";
 import { startOAuth } from "@/lib/auth/start-oauth";
+import { getErrorMessage } from "@/lib/api/errors";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -28,8 +30,7 @@ export default function SignUpPage() {
       await authApi.createAccount(form);
       router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
     } catch (err: unknown) {
-      const body = (err as { body?: { message?: string } })?.body;
-      setError(body?.message ?? "Unable to create account");
+      setError(getErrorMessage(err, "Unable to create account"));
     } finally {
       setSubmitting(false);
     }
@@ -99,9 +100,8 @@ export default function SignUpPage() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="pw">Password</Label>
-          <Input
+          <PasswordInput
             id="pw"
-            type="password"
             required
             minLength={8}
             value={form.password}

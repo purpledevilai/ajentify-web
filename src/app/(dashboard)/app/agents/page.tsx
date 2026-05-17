@@ -10,6 +10,7 @@ import { AgentCard } from "@/components/blocks/agent-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
 import { useOrgStore } from "@/lib/stores/org-store";
+import { getErrorMessage } from "@/lib/api/errors";
 
 export default function AgentsPage() {
   const router = useRouter();
@@ -38,8 +39,7 @@ export default function AgentsPage() {
       });
       router.push(`/app/agents/${a.agent_id}`);
     } catch (err: unknown) {
-      const body = (err as { body?: { message?: string } })?.body;
-      setCreateError(body?.message ?? "Unable to create agent");
+      setCreateError(getErrorMessage(err, "Unable to create agent"));
       setCreating(false);
     }
   }

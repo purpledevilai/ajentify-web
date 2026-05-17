@@ -89,18 +89,22 @@ describe("api client refresh logic", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it("sends credentials: include and JSON content-type", async () => {
-    let captured: RequestInit | undefined;
+  it("defaults to credentials: omit; opts in via credentialed flag", async () => {
+    const captured: RequestInit[] = [];
     globalThis.fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
-      captured = init;
+      captured.push(init!);
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }) as unknown as typeof fetch;
+
     await api.post("/something", { hello: "world" });
-    expect(captured?.credentials).toBe("include");
-    expect((captured?.headers as Record<string, string>)["Content-Type"]).toBe(
+    await api.credentialedPublicPost("/auth-cookie", { hello: "world" });
+
+    expect(captured[0]?.credentials).toBe("omit");
+    expect((captured[0]?.headers as Record<string, string>)["Content-Type"]).toBe(
       "application/json"
     );
-    expect(captured?.body).toBe(JSON.stringify({ hello: "world" }));
+    expect(captured[0]?.body).toBe(JSON.stringify({ hello: "world" }));
+    expect(captured[1]?.credentials).toBe("include");
   });
 
   it("serializes query params and skips null/undefined", async () => {

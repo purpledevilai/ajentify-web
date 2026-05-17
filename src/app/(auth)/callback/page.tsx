@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { popPkce } from "@/lib/auth/pkce";
-import { exchangeCodeForIdToken } from "@/lib/auth/providers";
+import {
+  exchangeMicrosoftCodeForIdToken,
+  oauthRedirectUri,
+} from "@/lib/auth/providers";
 import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { resolvePostAuthDestination } from "@/lib/auth/post-auth";
@@ -34,12 +37,26 @@ function OAuthCallback() {
         return;
       }
       try {
-        const id_token = await exchangeCodeForIdToken(
-          pkce.provider,
-          code,
-          pkce.verifier
-        );
-        const r = await authApi.oauth(id_token, pkce.provider);
+        // Google: hand the raw code + verifier to the backend so it can
+        // include client_secret in the token exchange (required by Google
+        // for "Web application" clients even with PKCE).
+        // Microsoft: SPA platform is secretless with PKCE — exchange in the
+        // browser and post the id_token to the backend.
+        const r =
+          pkce.provider === "google"
+            ? await authApi.oauth({
+                provider: "google",
+                code,
+                code_verifier: pkce.verifier,
+                redirect_uri: oauthRedirectUri(),
+              })
+            : await authApi.oauth({
+                provider: "microsoft",
+                id_token: await exchangeMicrosoftCodeForIdToken(
+                  code,
+                  pkce.verifier
+                ),
+              });
         complete(r);
         router.replace(resolvePostAuthDestination(r.user));
       } catch (err: unknown) {

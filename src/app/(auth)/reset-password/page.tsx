@@ -4,10 +4,12 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { resolvePostAuthDestination } from "@/lib/auth/post-auth";
+import { getErrorMessage } from "@/lib/api/errors";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -31,8 +33,7 @@ function ResetPasswordForm() {
       await authApi.resetPassword(email);
       setSent(true);
     } catch (err: unknown) {
-      const body = (err as { body?: { message?: string } })?.body;
-      setError(body?.message ?? "Unable to send reset email");
+      setError(getErrorMessage(err, "Unable to send reset email"));
     } finally {
       setSubmitting(false);
     }
@@ -47,8 +48,7 @@ function ResetPasswordForm() {
       complete(r);
       router.replace(resolvePostAuthDestination(r.user));
     } catch (err: unknown) {
-      const body = (err as { body?: { message?: string } })?.body;
-      setError(body?.message ?? "Unable to reset password");
+      setError(getErrorMessage(err, "Unable to reset password"));
     } finally {
       setSubmitting(false);
     }
@@ -78,9 +78,8 @@ function ResetPasswordForm() {
           )}
           <div className="space-y-1.5">
             <Label htmlFor="np">New password</Label>
-            <Input
+            <PasswordInput
               id="np"
-              type="password"
               required
               minLength={8}
               value={newPassword}

@@ -45,9 +45,9 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
+        <DropdownMenuItem onClick={() => router.push("/app/account")}>
           <UserIcon className="mr-2 size-4" />
-          Account (soon)
+          Account
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => {

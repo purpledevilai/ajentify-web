@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { ApiAgent, UpdateAgentParams } from "@/types/api";
 import { useAgentsStore, agentsActions } from "./agents-store";
 import { registerStore } from "./registry";
+import { getErrorMessage } from "@/lib/api/errors";
 
 type FormState = {
   agent_name: string;
@@ -112,9 +113,8 @@ export const useAgentBuilderStore = create<BuilderState>((set, get) => ({
       const base = fromAgent(updated);
       set({ form: base, original: base, saving: false });
     } catch (e) {
-      const body = (e as { body?: { message?: string } })?.body;
-      const message = body?.message ?? (e instanceof Error ? e.message : "Save failed");
-      set({ saving: false, saveError: message });
+      const fallback = e instanceof Error ? e.message : "Save failed";
+      set({ saving: false, saveError: getErrorMessage(e, fallback) });
     }
   },
 

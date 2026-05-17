@@ -9,6 +9,7 @@ import { orgApi } from "@/lib/api/organization";
 import { userApi } from "@/lib/api/user";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useOrgStore } from "@/lib/stores/org-store";
+import { getErrorMessage } from "@/lib/api/errors";
 
 export default function CreateOrganizationPage() {
   const router = useRouter();
@@ -31,8 +32,7 @@ export default function CreateOrganizationPage() {
       syncOrgs();
       router.replace("/app");
     } catch (err: unknown) {
-      const body = (err as { body?: { message?: string } })?.body;
-      setError(body?.message ?? "Unable to create organization");
+      setError(getErrorMessage(err, "Unable to create organization"));
     } finally {
       setSubmitting(false);
     }

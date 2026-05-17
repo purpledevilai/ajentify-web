@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { startOAuth } from "@/lib/auth/start-oauth";
 import { resolvePostAuthDestination } from "@/lib/auth/post-auth";
+import { getErrorCode, getErrorMessage } from "@/lib/api/errors";
 
 function LoginForm() {
   const router = useRouter();
@@ -27,8 +29,15 @@ function LoginForm() {
       const user = await login(email, password);
       router.replace(resolvePostAuthDestination(user, next));
     } catch (err: unknown) {
-      const body = (err as { body?: { message?: string } })?.body;
-      setError(body?.message ?? "Invalid email or password");
+      const code = getErrorCode(err);
+      if (code === "email_not_verified" || code === "email_not_verified_resent") {
+        const resent = code === "email_not_verified_resent" ? "1" : "0";
+        router.replace(
+          `/verify-email?email=${encodeURIComponent(email)}&from=login&resent=${resent}`
+        );
+        return;
+      }
+      setError(getErrorMessage(err, "Invalid email or password"));
     } finally {
       setSubmitting(false);
     }
@@ -78,15 +87,18 @@ function LoginForm() {
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
             <Link
-              href="/reset-password"
+              href={
+                email.trim()
+                  ? `/reset-password?email=${encodeURIComponent(email.trim())}`
+                  : "/reset-password"
+              }
               className="text-muted-foreground hover:text-foreground text-xs"
             >
               Forgot?
             </Link>
           </div>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}

@@ -7,6 +7,10 @@ import { Button } from "@/components/primitives/button";
 import { GoogleIcon, MicrosoftIcon } from "@/components/primitives/brand-icons";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import {
+  PasswordRequirements,
+  isPasswordValid,
+} from "@/components/ui/password-requirements";
 import { Label } from "@/components/ui/label";
 import { authApi } from "@/lib/api/auth";
 import { startOAuth } from "@/lib/auth/start-oauth";
@@ -110,13 +114,14 @@ export default function SignUpPage() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
+          <PasswordRequirements value={form.password} className="pt-1" />
         </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
         <Button
           type="submit"
           variant="gradient"
           className="w-full"
-          disabled={submitting}
+          disabled={submitting || !isPasswordValid(form.password)}
         >
           {submitting ? "Creating…" : "Create account"}
         </Button>

@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import {
+  PasswordRequirements,
+  isPasswordValid,
+} from "@/components/ui/password-requirements";
 import { Label } from "@/components/ui/label";
 import { authApi } from "@/lib/api/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -85,13 +89,14 @@ function ResetPasswordForm() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
+            <PasswordRequirements value={newPassword} className="pt-1" />
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
           <Button
             type="submit"
             variant="gradient"
             className="w-full"
-            disabled={submitting}
+            disabled={submitting || !isPasswordValid(newPassword)}
           >
             {submitting ? "Saving…" : "Set new password"}
           </Button>

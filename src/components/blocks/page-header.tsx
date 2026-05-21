@@ -14,8 +14,13 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-end justify-between gap-4", className)}>
-      <div>
+    <div
+      className={cn(
+        "flex flex-wrap items-end justify-between gap-x-4 gap-y-3",
+        className
+      )}
+    >
+      <div className="min-w-0">
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           {title}
         </h1>
@@ -23,7 +28,9 @@ export function PageHeader({
           <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
         )}
       </div>
-      {actions}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }

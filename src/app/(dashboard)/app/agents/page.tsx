@@ -208,7 +208,7 @@ export default function AgentsPage() {
         title="Agents"
         subtitle="Design and orchestrate intelligent agents."
         actions={
-          <div className="flex items-center gap-2">
+          <>
             <Button
               variant={bulkMode ? "solid" : "outline"}
               onClick={() => setBulkMode((v) => !v)}
@@ -221,7 +221,7 @@ export default function AgentsPage() {
               <Plus className="size-4" />
               {creating ? "Creating…" : "New agent"}
             </Button>
-          </div>
+          </>
         }
       />
       {error && <p className="text-destructive text-sm">{error}</p>}

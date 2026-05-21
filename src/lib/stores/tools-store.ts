@@ -13,3 +13,14 @@ export const useToolsStore = createListStore<ApiTool, "tool_id">({
   },
   dependencies: [{ ensureLoaded: () => usePdStore.getState().ensureLoaded() }],
 });
+
+/**
+ * Mutation helpers — call the API and reflect the result in the store so
+ * the tools index updates without a refetch.
+ */
+export const toolsActions = {
+  async delete(tool_id: string) {
+    await toolsApi.delete(tool_id);
+    useToolsStore.getState().removeById(tool_id);
+  },
+};

@@ -1,16 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, Plus } from "lucide-react";
+import { Bot, CheckSquare, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/primitives/button";
 import { PageHeader } from "@/components/blocks/page-header";
 import { EmptyState } from "@/components/blocks/empty-state";
-import { AgentCard } from "@/components/blocks/agent-card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CopyButton } from "@/components/blocks/copy-button";
+import {
+  DataTable,
+  type BulkAction,
+  type ColumnDef,
+} from "@/components/blocks/data-table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
+import { useToolsStore } from "@/lib/stores/tools-store";
 import { useOrgStore } from "@/lib/stores/org-store";
 import { getErrorMessage } from "@/lib/api/errors";
+import { formatDateTime, formatRelativeTime } from "@/lib/utils/date";
+import type { ApiAgent, ApiTool } from "@/types/api";
 
 export default function AgentsPage() {
   const router = useRouter();
@@ -20,12 +32,23 @@ export default function AgentsPage() {
   const loading = useAgentsStore((s) => s.loading);
   const error = useAgentsStore((s) => s.error);
   const ensureLoaded = useAgentsStore((s) => s.ensureLoaded);
+  const tools = useToolsStore((s) => s.data);
+
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [bulkMode, setBulkMode] = useState(false);
 
   useEffect(() => {
+    // Agents store already declares tools as a dependency, so calling
+    // ensureLoaded() warms both. No need for a separate tools fetch here.
     if (orgId) ensureLoaded();
   }, [orgId, ensureLoaded]);
+
+  const toolsById = useMemo(() => {
+    const m = new Map<string, ApiTool>();
+    for (const t of tools) m.set(t.tool_id, t);
+    return m;
+  }, [tools]);
 
   async function onCreate() {
     setCreateError(null);
@@ -44,45 +67,254 @@ export default function AgentsPage() {
     }
   }
 
+  const columns = useMemo<ColumnDef<ApiAgent>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Name",
+        sortable: true,
+        minWidth: "280px",
+        sortValue: (a) => a.agent_name.toLowerCase(),
+        searchValue: (a) => `${a.agent_name} ${a.agent_description ?? ""}`,
+        cell: (a) => (
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="bg-muted text-primary mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md">
+              <Bot className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-medium break-words">
+                {a.agent_name || "Untitled agent"}
+              </div>
+              {a.agent_description && (
+                <div className="text-muted-foreground mt-0.5 text-xs break-words">
+                  {a.agent_description}
+                </div>
+              )}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "stage",
+        header: "Stage",
+        sortable: true,
+        sortValue: (a) => a.stage_id ?? "",
+        searchValue: (a) => a.stage_id ?? "",
+        width: "140px",
+        cell: (a) =>
+          a.stage_id ? (
+            <span className="bg-muted text-foreground inline-flex max-w-full items-center rounded px-1.5 py-0.5 font-mono text-xs">
+              <span className="truncate">{a.stage_id}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        id: "logical_name",
+        header: "Logical name",
+        sortable: true,
+        sortValue: (a) => a.logical_name ?? "",
+        searchValue: (a) => a.logical_name ?? "",
+        width: "200px",
+        cell: (a) =>
+          a.logical_name ? (
+            <div className="flex min-w-0 items-center gap-1">
+              <span
+                className="text-foreground truncate font-mono text-xs"
+                title={a.logical_name}
+              >
+                {a.logical_name}
+              </span>
+              <CopyButton value={a.logical_name} label="Copy logical name" />
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        id: "tools",
+        header: "Tools",
+        sortable: true,
+        sortValue: (a) => a.tools?.length ?? 0,
+        width: "120px",
+        cell: (a) => <ToolsCell agent={a} toolsById={toolsById} />,
+      },
+      {
+        id: "updated_at",
+        header: "Updated",
+        sortable: true,
+        sortValue: (a) => a.updated_at,
+        width: "140px",
+        cell: (a) => (
+          <span
+            className="text-muted-foreground tabular-nums"
+            title={formatDateTime(a.updated_at)}
+          >
+            {formatRelativeTime(a.updated_at)}
+          </span>
+        ),
+      },
+    ],
+    [toolsById]
+  );
+
+  const bulkActions = useMemo<BulkAction<ApiAgent>[]>(
+    () => [
+      {
+        id: "delete",
+        label: "Delete",
+        icon: Trash2,
+        variant: "destructive",
+        confirm: {
+          title: (rows) =>
+            rows.length === 1
+              ? "Delete this agent?"
+              : `Delete ${rows.length} agents?`,
+          description: (rows) =>
+            rows.length === 1 ? (
+              <>
+                <span className="text-foreground font-medium">
+                  {rows[0].agent_name || "Untitled agent"}
+                </span>{" "}
+                will be permanently removed. This cannot be undone.
+              </>
+            ) : (
+              `These ${rows.length} agents will be permanently removed. This cannot be undone.`
+            ),
+          confirmLabel: "Delete",
+        },
+        successMessage: (rows) =>
+          `Deleted ${rows.length} ${rows.length === 1 ? "agent" : "agents"}`,
+        async run(rows) {
+          const results = await Promise.allSettled(
+            rows.map((r) => agentsActions.delete(r.agent_id))
+          );
+          const failed = results.filter((r) => r.status === "rejected").length;
+          if (failed > 0) {
+            throw new Error(
+              `Deleted ${rows.length - failed} of ${rows.length} agents · ${failed} failed`
+            );
+          }
+        },
+      },
+    ],
+    []
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Agents"
         subtitle="Design and orchestrate intelligent agents."
         actions={
-          <Button variant="gradient" onClick={onCreate} disabled={creating}>
-            <Plus className="size-4" />
-            {creating ? "Creating…" : "New agent"}
-          </Button>
-        }
-      />
-      {error && <p className="text-destructive text-sm">{error}</p>}
-      {createError && <p className="text-destructive text-sm">{createError}</p>}
-      {loading && !loaded ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Skeleton key={i} className="h-28 rounded-lg" />
-          ))}
-        </div>
-      ) : data.length === 0 && loaded ? (
-        <EmptyState
-          icon={Bot}
-          title="No agents yet"
-          description="Create your first agent to get started."
-          action={
+          <div className="flex items-center gap-2">
+            <Button
+              variant={bulkMode ? "solid" : "outline"}
+              onClick={() => setBulkMode((v) => !v)}
+              disabled={data.length === 0}
+            >
+              <CheckSquare className="size-4" />
+              {bulkMode ? "Exit bulk select" : "Bulk select"}
+            </Button>
             <Button variant="gradient" onClick={onCreate} disabled={creating}>
               <Plus className="size-4" />
               {creating ? "Creating…" : "New agent"}
             </Button>
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {data.map((a) => (
-            <AgentCard key={a.agent_id} agent={a} />
-          ))}
-        </div>
-      )}
+          </div>
+        }
+      />
+      {error && <p className="text-destructive text-sm">{error}</p>}
+      {createError && <p className="text-destructive text-sm">{createError}</p>}
+
+      <DataTable<ApiAgent>
+        data={data}
+        columns={columns}
+        getRowKey={(a) => a.agent_id}
+        rowHref={(a) => `/app/agents/${a.agent_id}`}
+        loading={loading}
+        loaded={loaded}
+        defaultSort={{ columnId: "updated_at", direction: "desc" }}
+        searchPlaceholder="Search agents…"
+        bulkSelectMode={bulkMode}
+        onBulkSelectModeChange={setBulkMode}
+        bulkActions={bulkActions}
+        resourceLabel={{ singular: "agent", plural: "agents" }}
+        emptyState={
+          <EmptyState
+            icon={Bot}
+            title="No agents yet"
+            description="Create your first agent to get started."
+            action={
+              <Button
+                variant="gradient"
+                onClick={onCreate}
+                disabled={creating}
+              >
+                <Plus className="size-4" />
+                {creating ? "Creating…" : "New agent"}
+              </Button>
+            }
+          />
+        }
+      />
     </div>
+  );
+}
+
+function ToolsCell({
+  agent,
+  toolsById,
+}: {
+  agent: ApiAgent;
+  toolsById: Map<string, ApiTool>;
+}) {
+  const ids = agent.tools ?? [];
+  const count = ids.length;
+  const label = `${count} tool${count === 1 ? "" : "s"}`;
+
+  if (count === 0) {
+    return <span className="text-muted-foreground tabular-nums">{label}</span>;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="text-foreground hover:text-primary inline-flex items-center gap-1 rounded-md text-sm tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span>{label}</span>
+            <ChevronDown className="size-3 opacity-60" />
+          </button>
+        }
+      />
+      <DropdownMenuContent align="start" className="max-h-72 min-w-48">
+        <div className="text-muted-foreground px-2 py-1 text-[0.65rem] font-medium tracking-wide uppercase">
+          {label}
+        </div>
+        {ids.map((id) => {
+          const t = toolsById.get(id);
+          return (
+            <div
+              key={id}
+              className="px-2 py-1 font-mono text-xs"
+              title={t ? undefined : id}
+            >
+              {t ? (
+                <span className="text-foreground">{t.name}</span>
+              ) : (
+                <span className="text-muted-foreground italic">
+                  unknown ({id.slice(0, 8)}…)
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

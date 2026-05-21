@@ -32,6 +32,11 @@ export function createListStore<T, K extends keyof T>(
   // Single-flight slot lives in the factory closure so concurrent
   // ensureLoaded() callers coalesce onto one fetcher invocation.
   let inflight: Promise<T[]> | null = null;
+  // Generation token bumped by `refresh()` and `reset()`. Each in-flight
+  // fetch captures the gen at start time; if a newer call (or a reset)
+  // bumps it before this fetch resolves, the stale result is discarded
+  // instead of clobbering the store.
+  let generation = 0;
 
   const creator: StateCreator<ListStoreState<T, K>> = (set, get) => ({
     data: [],
@@ -48,34 +53,46 @@ export function createListStore<T, K extends keyof T>(
     },
 
     async refresh() {
+      const myGen = ++generation;
       const isFirst = !get().loaded;
       set({ loading: isFirst, refreshing: !isFirst, error: null });
-      inflight = (async () => {
+      const run = async (): Promise<T[]> => {
         try {
           if (opts.dependencies?.length) {
             await Promise.all(opts.dependencies.map((d) => d.ensureLoaded()));
           }
           const data = await opts.fetcher();
-          set({
-            data,
-            loaded: true,
-            loading: false,
-            refreshing: false,
-            error: null,
-          });
+          if (myGen === generation) {
+            set({
+              data,
+              loaded: true,
+              loading: false,
+              refreshing: false,
+              error: null,
+            });
+          }
           return data;
         } catch (e) {
-          const msg = e instanceof Error ? e.message : "Unknown error";
-          set({ loading: false, refreshing: false, error: msg });
+          if (myGen === generation) {
+            const msg = e instanceof Error ? e.message : "Unknown error";
+            set({ loading: false, refreshing: false, error: msg });
+          }
           throw e;
         } finally {
-          inflight = null;
+          // Only clear the slot if it's still ours — a newer refresh() or
+          // reset() may have replaced it while we were awaiting.
+          if (inflight === p) inflight = null;
         }
-      })();
-      return inflight;
+      };
+      const p = run();
+      inflight = p;
+      return p;
     },
 
     reset() {
+      // Bumping generation neutralises any in-flight fetch so its eventual
+      // resolve/reject can't write to the store after we've cleared it.
+      generation++;
       inflight = null;
       set({
         data: [],

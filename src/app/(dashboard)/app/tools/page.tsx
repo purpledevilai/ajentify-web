@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
 import { PageHeader } from "@/components/blocks/page-header";
 import { EmptyState } from "@/components/blocks/empty-state";
+import { CopyButton } from "@/components/blocks/copy-button";
 import {
   DataTable,
   type BulkAction,
@@ -14,12 +15,13 @@ import {
 import { useOrgStore } from "@/lib/stores/org-store";
 import { useToolsStore, toolsActions } from "@/lib/stores/tools-store";
 import { usePdStore } from "@/lib/stores/parameter-definitions-store";
+import { useStagesStore } from "@/lib/stores/stages-store";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils/date";
 import {
   formatToolSignature,
   getToolParamNames,
 } from "@/lib/utils/tool-signature";
-import type { ApiParameterDefinition, ApiTool } from "@/types/api";
+import type { ApiParameterDefinition, ApiStage, ApiTool } from "@/types/api";
 
 export default function ToolsPage() {
   const orgId = useOrgStore((s) => s.activeOrgId);
@@ -30,6 +32,8 @@ export default function ToolsPage() {
   const ensureLoaded = useToolsStore((s) => s.ensureLoaded);
   const paramDefs = usePdStore((s) => s.data);
   const ensurePds = usePdStore((s) => s.ensureLoaded);
+  const stages = useStagesStore((s) => s.data);
+  const ensureStagesLoaded = useStagesStore((s) => s.ensureLoaded);
 
   const [bulkMode, setBulkMode] = useState(false);
 
@@ -37,8 +41,15 @@ export default function ToolsPage() {
     if (orgId) {
       ensureLoaded();
       ensurePds();
+      ensureStagesLoaded();
     }
-  }, [orgId, ensureLoaded, ensurePds]);
+  }, [orgId, ensureLoaded, ensurePds, ensureStagesLoaded]);
+
+  const stagesById = useMemo(() => {
+    const m = new Map<string, ApiStage>();
+    for (const s of stages) m.set(s.stage_id, s);
+    return m;
+  }, [stages]);
 
   const columns = useMemo<ColumnDef<ApiTool>[]>(
     () => [
@@ -54,18 +65,65 @@ export default function ToolsPage() {
         ),
       },
       {
-        id: "flags",
-        header: "",
-        width: "180px",
+        id: "language",
+        header: "Language",
+        sortable: true,
+        // Hardcoded for now — every tool is Python today. When the backend
+        // exposes a `language` field on `ApiTool`, swap this for `t.language`.
+        sortValue: () => "python",
+        width: "160px",
         cell: (t) => (
           <div className="flex flex-wrap items-center gap-1">
-            {t.is_client_side_tool && (
-              <Badge variant="secondary">Client</Badge>
-            )}
-            {t.is_async && <Badge variant="secondary">Async</Badge>}
-            {t.pass_context && <Badge variant="outline">Context</Badge>}
+            <Badge variant="secondary">Python</Badge>
+            {t.is_async && <Badge variant="outline">Async</Badge>}
           </div>
         ),
+      },
+      {
+        id: "stage",
+        header: "Stage",
+        sortable: true,
+        sortValue: (t) =>
+          t.stage_id ? (stagesById.get(t.stage_id)?.name ?? t.stage_id) : "",
+        searchValue: (t) =>
+          t.stage_id ? (stagesById.get(t.stage_id)?.name ?? t.stage_id) : "",
+        width: "140px",
+        cell: (t) => {
+          if (!t.stage_id) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          const stage = stagesById.get(t.stage_id);
+          return (
+            <span
+              className="bg-muted text-foreground inline-flex max-w-full items-center rounded px-1.5 py-0.5 text-xs"
+              title={stage ? `${stage.name} · ${t.stage_id}` : t.stage_id}
+            >
+              <span className="truncate">{stage?.name ?? t.stage_id}</span>
+            </span>
+          );
+        },
+      },
+      {
+        id: "logical_name",
+        header: "Logical name",
+        sortable: true,
+        sortValue: (t) => t.logical_name ?? "",
+        searchValue: (t) => t.logical_name ?? "",
+        width: "200px",
+        cell: (t) =>
+          t.logical_name ? (
+            <div className="flex min-w-0 items-center gap-1">
+              <span
+                className="text-foreground truncate font-mono text-xs"
+                title={t.logical_name}
+              >
+                {t.logical_name}
+              </span>
+              <CopyButton value={t.logical_name} label="Copy logical name" />
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
       },
       {
         id: "updated_at",
@@ -83,7 +141,7 @@ export default function ToolsPage() {
         ),
       },
     ],
-    [paramDefs]
+    [paramDefs, stagesById]
   );
 
   const bulkActions = useMemo<BulkAction<ApiTool>[]>(
@@ -206,7 +264,10 @@ function ToolNameCell({
           <span className="text-muted-foreground">)</span>
         </div>
         {tool.description && (
-          <div className="text-muted-foreground mt-0.5 text-xs break-words">
+          <div
+            className="text-muted-foreground mt-0.5 truncate text-xs"
+            title={tool.description}
+          >
             {tool.description}
           </div>
         )}

@@ -145,4 +145,62 @@ describe("createListStore", () => {
     expect(useFoo.getState().loaded).toBe(false);
     expect(useFoo.getState().loading).toBe(false);
   });
+
+  it("reset during in-flight load discards the late fetcher result", async () => {
+    let resolveFetcher: (v: Foo[]) => void = () => {};
+    const fetcher = vi.fn(
+      () =>
+        new Promise<Foo[]>((res) => {
+          resolveFetcher = res;
+        })
+    );
+    const useFoo = createListStore<Foo, "id">({
+      name: "foo",
+      fetcher,
+      idKey: "id",
+    });
+
+    const pending = useFoo.getState().ensureLoaded();
+    expect(useFoo.getState().loading).toBe(true);
+
+    useFoo.getState().reset();
+    expect(useFoo.getState().loaded).toBe(false);
+    expect(useFoo.getState().data).toEqual([]);
+
+    // Resolve the stale fetcher AFTER reset — it must NOT repopulate the store.
+    resolveFetcher([{ id: "a", n: 1 }]);
+    await pending.catch(() => {});
+
+    expect(useFoo.getState().loaded).toBe(false);
+    expect(useFoo.getState().data).toEqual([]);
+    expect(useFoo.getState().loading).toBe(false);
+  });
+
+  it("a newer refresh supersedes an in-flight older refresh", async () => {
+    const resolvers: Array<(v: Foo[]) => void> = [];
+    const fetcher = vi.fn(
+      () =>
+        new Promise<Foo[]>((res) => {
+          resolvers.push(res);
+        })
+    );
+    const useFoo = createListStore<Foo, "id">({
+      name: "foo",
+      fetcher,
+      idKey: "id",
+    });
+
+    const first = useFoo.getState().refresh();
+    const second = useFoo.getState().refresh();
+
+    // Resolve the SECOND call first, then the (stale) first call.
+    resolvers[1]!([{ id: "new", n: 2 }]);
+    resolvers[0]!([{ id: "stale", n: 1 }]);
+
+    await Promise.all([first.catch(() => {}), second]);
+
+    // The store must reflect the newer call's result, not the stale one.
+    expect(useFoo.getState().data).toEqual([{ id: "new", n: 2 }]);
+    expect(useFoo.getState().loaded).toBe(true);
+  });
 });

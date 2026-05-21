@@ -19,10 +19,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
+import { useStagesStore } from "@/lib/stores/stages-store";
 import { useOrgStore } from "@/lib/stores/org-store";
 import { getErrorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils/date";
-import type { ApiAgent, ApiTool } from "@/types/api";
+import type { ApiAgent, ApiStage, ApiTool } from "@/types/api";
 
 export default function AgentsPage() {
   const router = useRouter();
@@ -33,6 +34,8 @@ export default function AgentsPage() {
   const error = useAgentsStore((s) => s.error);
   const ensureLoaded = useAgentsStore((s) => s.ensureLoaded);
   const tools = useToolsStore((s) => s.data);
+  const stages = useStagesStore((s) => s.data);
+  const ensureStagesLoaded = useStagesStore((s) => s.ensureLoaded);
 
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -40,15 +43,26 @@ export default function AgentsPage() {
 
   useEffect(() => {
     // Agents store already declares tools as a dependency, so calling
-    // ensureLoaded() warms both. No need for a separate tools fetch here.
-    if (orgId) ensureLoaded();
-  }, [orgId, ensureLoaded]);
+    // ensureLoaded() warms both. Stages aren't a dependency of agents
+    // (agents render without them) but we need them resolved to render
+    // the Stage column with human-readable names.
+    if (orgId) {
+      ensureLoaded();
+      ensureStagesLoaded();
+    }
+  }, [orgId, ensureLoaded, ensureStagesLoaded]);
 
   const toolsById = useMemo(() => {
     const m = new Map<string, ApiTool>();
     for (const t of tools) m.set(t.tool_id, t);
     return m;
   }, [tools]);
+
+  const stagesById = useMemo(() => {
+    const m = new Map<string, ApiStage>();
+    for (const s of stages) m.set(s.stage_id, s);
+    return m;
+  }, [stages]);
 
   async function onCreate() {
     setCreateError(null);
@@ -98,17 +112,25 @@ export default function AgentsPage() {
         id: "stage",
         header: "Stage",
         sortable: true,
-        sortValue: (a) => a.stage_id ?? "",
-        searchValue: (a) => a.stage_id ?? "",
+        sortValue: (a) =>
+          a.stage_id ? (stagesById.get(a.stage_id)?.name ?? a.stage_id) : "",
+        searchValue: (a) =>
+          a.stage_id ? (stagesById.get(a.stage_id)?.name ?? a.stage_id) : "",
         width: "140px",
-        cell: (a) =>
-          a.stage_id ? (
-            <span className="bg-muted text-foreground inline-flex max-w-full items-center rounded px-1.5 py-0.5 font-mono text-xs">
-              <span className="truncate">{a.stage_id}</span>
+        cell: (a) => {
+          if (!a.stage_id) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          const stage = stagesById.get(a.stage_id);
+          return (
+            <span
+              className="bg-muted text-foreground inline-flex max-w-full items-center rounded px-1.5 py-0.5 text-xs"
+              title={stage ? `${stage.name} · ${a.stage_id}` : a.stage_id}
+            >
+              <span className="truncate">{stage?.name ?? a.stage_id}</span>
             </span>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          ),
+          );
+        },
       },
       {
         id: "logical_name",
@@ -156,7 +178,7 @@ export default function AgentsPage() {
         ),
       },
     ],
-    [toolsById]
+    [toolsById, stagesById]
   );
 
   const bulkActions = useMemo<BulkAction<ApiAgent>[]>(

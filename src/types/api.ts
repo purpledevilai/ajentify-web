@@ -103,6 +103,27 @@ export interface CreateAgentParams {
 
 export type UpdateAgentParams = Partial<Omit<CreateAgentParams, "org_id">>;
 
+/**
+ * Built-in tool shipped by the platform. Distinct from `ApiTool`: default
+ * tools have no `org_id`, no ParameterDefinition (their JSON schema is
+ * inlined as `parameters`), and carry a `category` used to group them in
+ * the agent designer.
+ */
+export interface ApiDefaultTool {
+  tool_id: string;
+  name: string;
+  description?: string | null;
+  parameters: Record<string, unknown>;
+  pass_context?: boolean;
+  is_async?: boolean;
+  is_client_side_tool?: boolean;
+  category: string;
+}
+
+export interface GetDefaultToolsResponse {
+  tools: ApiDefaultTool[];
+}
+
 export interface GetAgentsResponse {
   agents: ApiAgent[];
 }
@@ -114,4 +135,185 @@ export interface GetParameterDefinitionsResponse {
 }
 export interface GetModelsResponse {
   models: ApiLLMModel[];
+}
+
+/**
+ * Org-token metadata as returned by GET /api-keys. The raw JWT is never
+ * exposed in the list view — only a hint built from its last 8 chars.
+ */
+export interface ApiAPIKeySummary {
+  api_key_id: string;
+  org_id: string;
+  token_hint: string;
+  valid: boolean;
+  created_at: number;
+}
+
+/** Full APIKey, returned only when a new key is generated. */
+export interface ApiAPIKey {
+  api_key_id: string;
+  org_id: string;
+  token: string;
+  valid: boolean;
+  type: "org" | "client";
+  user_id: string;
+  client_id?: string | null;
+  created_at: number;
+  updated_at: number;
+  expires_at?: number | null;
+}
+
+export interface GetAPIKeysResponse {
+  api_keys: ApiAPIKeySummary[];
+}
+
+export interface ApiDataWindow {
+  data_window_id: string;
+  org_id: string;
+  name?: string | null;
+  description?: string | null;
+  data: string;
+  stage_id?: string | null;
+  logical_name?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateDataWindowParams {
+  org_id?: string;
+  name?: string | null;
+  description?: string | null;
+  data: string;
+}
+
+export interface UpdateDataWindowParams {
+  name?: string | null;
+  description?: string | null;
+  data?: string | null;
+}
+
+export interface GetDataWindowsResponse {
+  data_windows: ApiDataWindow[];
+}
+
+export interface ApiIntegration {
+  integration_id: string;
+  org_id: string;
+  type: string;
+  integration_config: Record<string, unknown>;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateIntegrationParams {
+  type: string;
+  integration_config: Record<string, unknown>;
+  org_id?: string;
+}
+
+export interface UpdateIntegrationParams {
+  type?: string;
+  integration_config?: Record<string, unknown>;
+}
+
+export interface GetIntegrationsResponse {
+  integrations: ApiIntegration[];
+}
+
+export interface ApiJSONDocument {
+  document_id: string;
+  name: string;
+  data: Record<string, unknown>;
+  org_id: string;
+  stage_id?: string | null;
+  logical_name?: string | null;
+  created_at: number;
+  updated_at: number;
+  is_public: boolean;
+}
+
+export interface CreateJSONDocumentParams {
+  name: string;
+  data: Record<string, unknown>;
+  org_id?: string;
+  is_public?: boolean;
+}
+
+export interface UpdateJSONDocumentParams {
+  name?: string;
+  data?: Record<string, unknown>;
+  is_public?: boolean;
+  stage_id?: string | null;
+  logical_name?: string | null;
+}
+
+export interface GetJSONDocumentsResponse {
+  json_documents: ApiJSONDocument[];
+}
+
+export interface ApiStage {
+  stage_id: string;
+  org_id: string;
+  name: string;
+  description?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateStageParams {
+  org_id?: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateStageParams {
+  name?: string;
+  description?: string | null;
+}
+
+export interface GetStagesResponse {
+  stages: ApiStage[];
+}
+
+export interface ApiStructuredResponseEndpoint {
+  sre_id: string;
+  org_id: string;
+  name: string;
+  description?: string | null;
+  pd_id: string;
+  is_public: boolean;
+  prompt_template?: string | null;
+  variable_names?: string[] | null;
+  model_id?: string | null;
+  stage_id?: string | null;
+  logical_name?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateSREParams {
+  org_id?: string;
+  name: string;
+  description?: string | null;
+  pd_id: string;
+  is_public?: boolean;
+  prompt_template: string;
+  variable_names?: string[] | null;
+  model_id?: string | null;
+}
+
+export interface UpdateSREParams {
+  name?: string;
+  description?: string | null;
+  pd_id?: string;
+  is_public?: boolean;
+  prompt_template?: string;
+  variable_names?: string[] | null;
+  model_id?: string | null;
+  stage_id?: string | null;
+  logical_name?: string | null;
+}
+
+export interface GetSREsResponse {
+  sres: ApiStructuredResponseEndpoint[];
 }

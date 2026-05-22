@@ -65,6 +65,19 @@ export interface ApiTool {
   updated_at: number;
 }
 
+export interface CreateToolParams {
+  org_id?: string;
+  name: string;
+  description: string;
+  pd_id?: string | null;
+  code?: string | null;
+  pass_context?: boolean;
+  is_async?: boolean;
+  is_client_side_tool?: boolean;
+}
+
+export type UpdateToolParams = Partial<Omit<CreateToolParams, "org_id">>;
+
 export interface ApiAgent {
   agent_id: string;
   agent_name: string;

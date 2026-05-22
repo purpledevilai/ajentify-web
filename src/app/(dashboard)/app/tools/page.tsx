@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare, Trash2, Wrench } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckSquare, Plus, Trash2, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
 import { PageHeader } from "@/components/blocks/page-header";
@@ -16,6 +17,7 @@ import { useOrgStore } from "@/lib/stores/org-store";
 import { useToolsStore, toolsActions } from "@/lib/stores/tools-store";
 import { usePdStore } from "@/lib/stores/parameter-definitions-store";
 import { useStagesStore } from "@/lib/stores/stages-store";
+import { getErrorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatRelativeTime } from "@/lib/utils/date";
 import {
   formatToolSignature,
@@ -24,6 +26,7 @@ import {
 import type { ApiParameterDefinition, ApiStage, ApiTool } from "@/types/api";
 
 export default function ToolsPage() {
+  const router = useRouter();
   const orgId = useOrgStore((s) => s.activeOrgId);
   const data = useToolsStore((s) => s.data);
   const loaded = useToolsStore((s) => s.loaded);
@@ -35,7 +38,25 @@ export default function ToolsPage() {
   const stages = useStagesStore((s) => s.data);
   const ensureStagesLoaded = useStagesStore((s) => s.ensureLoaded);
 
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
+
+  async function onCreate() {
+    setCreateError(null);
+    setCreating(true);
+    try {
+      const t = await toolsActions.create({
+        name: "untitled_tool",
+        description: "",
+        code: "",
+      });
+      router.push(`/app/tools/${t.tool_id}`);
+    } catch (err: unknown) {
+      setCreateError(getErrorMessage(err, "Unable to create tool"));
+      setCreating(false);
+    }
+  }
 
   useEffect(() => {
     if (orgId) {
@@ -192,24 +213,32 @@ export default function ToolsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Tools"
-        subtitle="Tools that agents can call. Creation via API or SDK — full UI coming soon."
+        subtitle="Tools that agents can call."
         actions={
-          <Button
-            variant={bulkMode ? "solid" : "outline"}
-            onClick={() => setBulkMode((v) => !v)}
-            disabled={data.length === 0}
-          >
-            <CheckSquare className="size-4" />
-            {bulkMode ? "Exit bulk select" : "Bulk select"}
-          </Button>
+          <>
+            <Button
+              variant={bulkMode ? "solid" : "outline"}
+              onClick={() => setBulkMode((v) => !v)}
+              disabled={data.length === 0}
+            >
+              <CheckSquare className="size-4" />
+              {bulkMode ? "Exit bulk select" : "Bulk select"}
+            </Button>
+            <Button variant="gradient" onClick={onCreate} disabled={creating}>
+              <Plus className="size-4" />
+              {creating ? "Creating…" : "New tool"}
+            </Button>
+          </>
         }
       />
       {error && <p className="text-destructive text-sm">{error}</p>}
+      {createError && <p className="text-destructive text-sm">{createError}</p>}
 
       <DataTable<ApiTool>
         data={data}
         columns={columns}
         getRowKey={(t) => t.tool_id}
+        rowHref={(t) => `/app/tools/${t.tool_id}`}
         loading={loading}
         loaded={loaded}
         defaultSort={{ columnId: "updated_at", direction: "desc" }}
@@ -222,7 +251,17 @@ export default function ToolsPage() {
           <EmptyState
             icon={Wrench}
             title="No tools yet"
-            description="Create tools via the Ajentify API or SDK to make them available to your agents."
+            description="Create your first tool to make it available to your agents."
+            action={
+              <Button
+                variant="gradient"
+                onClick={onCreate}
+                disabled={creating}
+              >
+                <Plus className="size-4" />
+                {creating ? "Creating…" : "New tool"}
+              </Button>
+            }
           />
         }
       />

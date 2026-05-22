@@ -52,9 +52,12 @@ export interface CodeEditorProps
   minHeight?: string;
   maxHeight?: string;
   className?: string;
+  /** When true, long lines wrap instead of horizontally scrolling.
+   *  Defaults to false — matches the VS Code / typical IDE behaviour. */
+  lineWrapping?: boolean;
   /** Override or extend the default basicSetup. */
   basicSetup?: ReactCodeMirrorProps["basicSetup"];
-  /** Additional CodeMirror extensions appended after language + wrap. */
+  /** Additional CodeMirror extensions appended after the language pack. */
   extensions?: ReactCodeMirrorProps["extensions"];
 }
 
@@ -82,6 +85,7 @@ export const CodeEditor = React.forwardRef<ReactCodeMirrorRef, CodeEditorProps>(
       minHeight = "8rem",
       maxHeight,
       className,
+      lineWrapping = false,
       basicSetup,
       extensions,
       ...rest
@@ -98,10 +102,10 @@ export const CodeEditor = React.forwardRef<ReactCodeMirrorRef, CodeEditorProps>(
     const allExtensions = React.useMemo(
       () => [
         ...languageExtension(language),
-        EditorView.lineWrapping,
+        ...(lineWrapping ? [EditorView.lineWrapping] : []),
         ...(extensions ?? []),
       ],
-      [language, extensions]
+      [language, lineWrapping, extensions]
     );
 
     const mergedBasicSetup = React.useMemo(() => {

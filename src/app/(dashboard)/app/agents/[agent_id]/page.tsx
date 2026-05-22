@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
   Loader2,
+  Plus,
   Trash2,
+  Wrench,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/primitives/button";
@@ -28,7 +31,14 @@ import { BuilderSection } from "@/components/blocks/builder-section";
 import { useAgentBuilderStore } from "@/lib/stores/agent-builder-store";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
+import { useDefaultToolsStore } from "@/lib/stores/default-tools-store";
 import { useModelsStore } from "@/lib/stores/models-store";
+import { usePdStore } from "@/lib/stores/parameter-definitions-store";
+import {
+  getParamNamesFromSchema,
+  getToolParamNames,
+  type ToolParamName,
+} from "@/lib/utils/tool-signature";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,6 +46,10 @@ import { cn } from "@/lib/utils";
  * Used to detect "first edit" so we can auto-focus the title input.
  */
 const DEFAULT_NEW_AGENT_NAME = "Untitled agent";
+
+/** Number of attached tools to show before the list collapses behind a
+ *  "Show N more" toggle. Mirrors the prompt's collapse pattern. */
+const TOOLS_COLLAPSED_LIMIT = 5;
 
 export default function AgentBuilderPage() {
   const router = useRouter();
@@ -55,6 +69,10 @@ export default function AgentBuilderPage() {
 
   const tools = useToolsStore((s) => s.data);
   const ensureTools = useToolsStore((s) => s.ensureLoaded);
+  const defaultTools = useDefaultToolsStore((s) => s.data);
+  const ensureDefaultTools = useDefaultToolsStore((s) => s.ensureLoaded);
+  const paramDefs = usePdStore((s) => s.data);
+  const ensurePds = usePdStore((s) => s.ensureLoaded);
   const models = useModelsStore((s) => s.data);
   const ensureModels = useModelsStore((s) => s.ensureLoaded);
   const ensureAgents = useAgentsStore((s) => s.ensureLoaded);
@@ -72,12 +90,24 @@ export default function AgentBuilderPage() {
   // editing a long prompt feels natural.
   const promptCollapsed = !promptExpanded && !promptFocused;
 
+  const [toolsExpanded, setToolsExpanded] = useState(false);
+
   useEffect(() => {
-    // Warm dependent stores. The builder needs agents (for lookup), tools (for picker), models (for picker).
+    // Warm dependent stores. The builder needs agents (for lookup), tools +
+    // default tools (to render the attached-tool list with signatures),
+    // parameter definitions (custom-tool params), and models (model picker).
     ensureAgents();
     ensureTools();
+    ensureDefaultTools();
+    ensurePds();
     ensureModels();
-  }, [ensureAgents, ensureTools, ensureModels]);
+  }, [
+    ensureAgents,
+    ensureTools,
+    ensureDefaultTools,
+    ensurePds,
+    ensureModels,
+  ]);
 
   useEffect(() => {
     if (agent_id) init(agent_id);
@@ -111,7 +141,7 @@ export default function AgentBuilderPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
-  // Decide whether the System prompt needs the fade + toggle by comparing the
+  // Decide whether the System prompt needs the toggle by comparing the
   // textarea's natural content height to its capped client height. Only
   // meaningful while the cap is in effect; when focused/expanded we keep the
   // last known value so the toggle stays visible.
@@ -126,6 +156,43 @@ export default function AgentBuilderPage() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [form?.prompt, promptCollapsed]);
+
+  // Unified lookup for any tool_id the agent might reference, regardless of
+  // whether it comes from the org's custom tools or the platform's built-in
+  // default tools. Returns `undefined` for IDs that resolve to neither
+  // (e.g. a tool deleted after being attached) so the UI can render a
+  // graceful "unknown" placeholder.
+  const toolsById = useMemo(() => {
+    const m = new Map<
+      string,
+      {
+        name: string;
+        description?: string | null;
+        params: ToolParamName[];
+        source: "custom" | "default";
+      }
+    >();
+    for (const t of tools) {
+      const pd = t.pd_id
+        ? paramDefs.find((p) => p.pd_id === t.pd_id)
+        : undefined;
+      m.set(t.tool_id, {
+        name: t.name,
+        description: t.description,
+        params: getToolParamNames(pd),
+        source: "custom",
+      });
+    }
+    for (const t of defaultTools) {
+      m.set(t.tool_id, {
+        name: t.name,
+        description: t.description,
+        params: getParamNamesFromSchema(t.parameters),
+        source: "default",
+      });
+    }
+    return m;
+  }, [tools, defaultTools, paramDefs]);
 
   if (notFound) {
     return (
@@ -293,46 +360,143 @@ export default function AgentBuilderPage() {
         )}
       </BuilderSection>
 
-      <BuilderSection title="Tools" description="Tools the agent can call.">
-        {tools.length === 0 ? (
-          <div className="text-muted-foreground text-sm">
-            No tools in this organization yet. Create tools via the Ajentify
-            API or SDK.
-          </div>
+      <BuilderSection
+        title="Tools"
+        description="Tools the agent can call."
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            // No-op placeholder — picker UI is intentionally deferred.
+            onClick={() => {}}
+          >
+            <Plus className="size-4" />
+            Add tool
+          </Button>
+        }
+      >
+        {form.tools.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            No tools attached yet.
+          </p>
         ) : (
-          <div className="space-y-2">
-            {tools.map((t) => {
-              const checked = form.tools.includes(t.tool_id);
-              return (
-                <label
-                  key={t.tool_id}
-                  className="hover:bg-muted border-border flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) =>
-                      setField(
-                        "tools",
-                        e.target.checked
-                          ? [...form.tools, t.tool_id]
-                          : form.tools.filter((id) => id !== t.tool_id)
-                      )
-                    }
-                    className="mt-1"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium">{t.name}</div>
-                    {t.description && (
-                      <div className="text-muted-foreground text-xs">
-                        {t.description}
-                      </div>
-                    )}
+          (() => {
+            const canCollapse = form.tools.length > TOOLS_COLLAPSED_LIMIT;
+            const visibleTools = toolsExpanded
+              ? form.tools
+              : form.tools.slice(0, TOOLS_COLLAPSED_LIMIT);
+            const hiddenCount = form.tools.length - visibleTools.length;
+            return (
+              <>
+                {canCollapse && toolsExpanded && (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setToolsExpanded(false)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ChevronUp className="size-4" />
+                      Show less
+                    </Button>
                   </div>
-                </label>
-              );
-            })}
-          </div>
+                )}
+                <div className="space-y-2">
+                  {visibleTools.map((id) => {
+                    const t = toolsById.get(id);
+                    return (
+                      <div
+                        key={id}
+                        className="group border-border hover:border-foreground/20 flex items-center gap-3 rounded-md border p-3 transition-colors"
+                      >
+                        <div className="bg-muted text-primary flex size-8 shrink-0 items-center justify-center rounded-md">
+                          <Wrench className="size-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {t ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="font-mono text-sm break-words">
+                                <span className="text-foreground font-medium">
+                                  {t.name}
+                                </span>
+                                <span className="text-muted-foreground">(</span>
+                                {t.params.length > 0 && (
+                                  <span className="text-muted-foreground">
+                                    {t.params.map((p, i) => (
+                                      <span key={p.name}>
+                                        {i > 0 && ", "}
+                                        <span className="text-foreground/80">
+                                          {p.name}
+                                        </span>
+                                        {p.optional && "?"}
+                                      </span>
+                                    ))}
+                                  </span>
+                                )}
+                                <span className="text-muted-foreground">)</span>
+                              </div>
+                              {t.source === "default" && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-muted-foreground"
+                                >
+                                  Built-in
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-muted-foreground font-mono text-sm italic">
+                              unknown ({id.slice(0, 8)}…)
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Remove tool"
+                          onClick={() =>
+                            setField(
+                              "tools",
+                              form.tools.filter((other) => other !== id)
+                            )
+                          }
+                          className="text-muted-foreground hover:text-destructive size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {canCollapse && (
+                  <div className="flex justify-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setToolsExpanded((v) => !v)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      {toolsExpanded ? (
+                        <>
+                          <ChevronUp className="size-4" />
+                          Show less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="size-4" />
+                          Show {hiddenCount} more
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
+            );
+          })()
         )}
       </BuilderSection>
 

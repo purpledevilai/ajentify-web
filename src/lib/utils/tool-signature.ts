@@ -1,24 +1,29 @@
 import type { ApiParameterDefinition, ApiTool } from "@/types/api";
 
-/**
- * Pulls the ordered list of parameter names from a parameter definition's
- * JSON-Schema-shaped `schema` object. Required params keep their plain name,
- * optional params get a trailing `?` (e.g. `lat`, `radius?`).
- *
- * Missing / malformed schemas yield an empty list.
- */
-export function getToolParamNames(pd: ApiParameterDefinition | undefined): {
+export interface ToolParamName {
   name: string;
   optional: boolean;
-}[] {
-  if (!pd?.schema || typeof pd.schema !== "object") return [];
-  const schema = pd.schema as Record<string, unknown>;
-  const props = schema.properties;
+}
+
+/**
+ * Pulls the ordered list of parameter names from a JSON-Schema-shaped object
+ * (i.e. one with `properties` and optionally `required`). Required params
+ * keep their plain name, optional params get a trailing `?` (e.g. `lat`,
+ * `radius?`).
+ *
+ * Missing / malformed schemas yield an empty list. Used by both custom
+ * tools (whose schema lives on a separate ParameterDefinition) and default
+ * tools (whose schema is inlined as `parameters`).
+ */
+export function getParamNamesFromSchema(schema: unknown): ToolParamName[] {
+  if (!schema || typeof schema !== "object") return [];
+  const s = schema as Record<string, unknown>;
+  const props = s.properties;
   if (!props || typeof props !== "object") return [];
   const required = new Set<string>(
-    Array.isArray(schema.required)
-      ? (schema.required as unknown[]).filter(
-          (s): s is string => typeof s === "string"
+    Array.isArray(s.required)
+      ? (s.required as unknown[]).filter(
+          (v): v is string => typeof v === "string"
         )
       : []
   );
@@ -26,6 +31,16 @@ export function getToolParamNames(pd: ApiParameterDefinition | undefined): {
     name,
     optional: !required.has(name),
   }));
+}
+
+/**
+ * Pulls parameter names from a custom tool's ParameterDefinition. Returns
+ * an empty list if the PD is missing.
+ */
+export function getToolParamNames(
+  pd: ApiParameterDefinition | undefined
+): ToolParamName[] {
+  return getParamNamesFromSchema(pd?.schema);
 }
 
 /**

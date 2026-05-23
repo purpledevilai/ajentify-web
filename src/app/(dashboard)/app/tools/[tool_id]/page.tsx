@@ -12,7 +12,6 @@ import { BuilderSection } from "@/components/blocks/builder-section";
 import { JsonSchemaEditor } from "@/components/blocks/json-schema-editor";
 import { useToolBuilderStore } from "@/lib/stores/tool-builder-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
-import { usePdStore } from "@/lib/stores/parameter-definitions-store";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,28 +36,13 @@ export default function ToolBuilderPage() {
   const isDirty = useToolBuilderStore((s) => s.isDirty);
 
   const ensureTools = useToolsStore((s) => s.ensureLoaded);
-  const ensurePds = usePdStore((s) => s.ensureLoaded);
-
-  // Pull the persisted Tool + ParameterDefinition directly from their stores
-  // so we can hand the editor the saved schema. The tools store already lists
-  // PDs as a dependency, so both warm up off the same `ensureTools()` call —
-  // we still call `ensurePds()` to keep this page robust if that dependency
-  // ever changes.
-  const tool = useToolsStore((s) =>
-    s.data.find((t) => t.tool_id === tool_id)
-  );
-  const pdsLoaded = usePdStore((s) => s.loaded);
-  const pd = usePdStore((s) =>
-    tool?.pd_id ? s.data.find((p) => p.pd_id === tool.pd_id) : undefined
-  );
 
   const nameRef = useRef<HTMLInputElement>(null);
   const didAutoFocus = useRef(false);
 
   useEffect(() => {
     ensureTools();
-    ensurePds();
-  }, [ensureTools, ensurePds]);
+  }, [ensureTools]);
 
   useEffect(() => {
     if (tool_id) init(tool_id);
@@ -191,23 +175,12 @@ export default function ToolBuilderPage() {
 
       <BuilderSection
         title="Parameters"
-        description={
-          tool?.pd_id
-            ? "Define the input shape the agent calls this tool with. Edits are local for now — not yet hooked up to save."
-            : "This tool has no parameter definition yet. Add fields below to draft one — saving isn't wired up yet."
-        }
+        description="Define the input shape the agent calls this tool with. Saved as a Parameter Definition record attached to this tool."
       >
-        {pdsLoaded ? (
-          <JsonSchemaEditor
-            // Key on `pd_id` so navigating between tools re-mounts the
-            // editor with the new tool's schema instead of reusing the
-            // previous tool's tree state.
-            key={tool?.pd_id ?? "no-pd"}
-            defaultValue={pd?.schema}
-          />
-        ) : (
-          <Skeleton className="h-96 w-full" />
-        )}
+        <JsonSchemaEditor
+          value={form.schema}
+          onChange={(s) => setField("schema", s)}
+        />
       </BuilderSection>
 
       <BuilderSection

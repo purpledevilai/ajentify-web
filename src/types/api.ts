@@ -49,6 +49,15 @@ export interface ApiParameterDefinition {
   updated_at: number;
 }
 
+export interface CreateParameterDefinitionParams {
+  org_id?: string;
+  schema: Record<string, unknown>;
+}
+
+export interface UpdateParameterDefinitionParams {
+  schema: Record<string, unknown>;
+}
+
 export interface ApiTool {
   tool_id: string;
   org_id: string;

@@ -102,24 +102,22 @@ export const JsonSchemaEditor = React.forwardRef<
 
   /* ------------------------------- Mutators ---------------------------- */
 
-  const emit = React.useCallback(
+  // `commitTree` is the only path that both updates the visual tree state
+  // *and* notifies the parent. Side effects MUST NOT live inside a
+  // `setState` updater function — React 19 re-invokes updaters during the
+  // next render to validate purity, and a nested `onChange` would surface
+  // as "Cannot update a component while rendering a different component".
+  // Event handlers compute the next tree from the current render-scoped
+  // closure (`tree`) and pass it in directly, which is fine for
+  // user-driven events.
+  const commitTree = React.useCallback(
     (next: SchemaNode) => {
       const schema = nodeToSchema(next);
       lastEmittedRef.current = canonicalJson(schema);
+      setTree(next);
       onChange?.(schema);
     },
     [onChange]
-  );
-
-  const updateTree = React.useCallback(
-    (updater: (prev: SchemaNode) => SchemaNode) => {
-      setTree((prev) => {
-        const next = updater(prev);
-        if (next !== prev) emit(next);
-        return next;
-      });
-    },
-    [emit]
   );
 
   /* ------------------------------- Imperative handle ------------------ */
@@ -156,12 +154,12 @@ export const JsonSchemaEditor = React.forwardRef<
 
   function handlePatch(patch: Partial<SchemaNode>) {
     if (!selectedNode) return;
-    updateTree((prev) => patchNode(prev, selectedNode.id, patch));
+    commitTree(patchNode(tree, selectedNode.id, patch));
   }
 
   function handleAddChild(parentId: string) {
     const child = makeNode({ name: "", type: "string" });
-    updateTree((prev) => addChild(prev, parentId, child));
+    commitTree(addChild(tree, parentId, child));
     setExpandedIds((prev) => {
       const next = new Set(prev);
       next.add(parentId);
@@ -171,7 +169,7 @@ export const JsonSchemaEditor = React.forwardRef<
   }
 
   function handleDelete(id: string) {
-    updateTree((prev) => removeNode(prev, id));
+    commitTree(removeNode(tree, id));
     if (selectedId === id) setSelectedId(null);
   }
 
@@ -205,9 +203,7 @@ export const JsonSchemaEditor = React.forwardRef<
     setJsonText(text);
     const parsed = commitJson(text);
     if (parsed) {
-      const next = schemaToRoot(parsed);
-      setTree(next);
-      emit(next);
+      commitTree(schemaToRoot(parsed));
     }
   }
 

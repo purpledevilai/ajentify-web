@@ -47,6 +47,20 @@ export interface JsonSchemaEditorProps {
   className?: string;
   /** Override the hint shown when the schema has no fields. */
   emptyHint?: React.ReactNode;
+  /** Optional: transform property names on user input. When provided,
+   *  any patch that includes a `name` runs through this function before
+   *  it reaches the tree. Used by tool builders to coerce names into
+   *  valid Python identifiers — see `sanitizeIdentifier` in
+   *  `@/lib/utils/tool-function-decl`. */
+  sanitizePropertyName?: (raw: string) => string;
+  /** Optional: validate property names. Receives the (possibly
+   *  already-sanitized) current name and returns an error message to
+   *  show inline, or null when valid. Catches names imported via the
+   *  JSON tab that bypassed `sanitizePropertyName`. */
+  validatePropertyName?: (name: string) => string | null;
+  /** Optional helper text shown under the field-name input. Lets the
+   *  consumer explain the constraint without baking it into the editor. */
+  propertyNameHint?: React.ReactNode;
 }
 
 export interface JsonSchemaEditorHandle {
@@ -58,7 +72,16 @@ export const JsonSchemaEditor = React.forwardRef<
   JsonSchemaEditorHandle,
   JsonSchemaEditorProps
 >(function JsonSchemaEditor(
-  { value, defaultValue, onChange, className, emptyHint },
+  {
+    value,
+    defaultValue,
+    onChange,
+    className,
+    emptyHint,
+    sanitizePropertyName,
+    validatePropertyName,
+    propertyNameHint,
+  },
   ref
 ) {
   const isControlled = value !== undefined;
@@ -154,7 +177,16 @@ export const JsonSchemaEditor = React.forwardRef<
 
   function handlePatch(patch: Partial<SchemaNode>) {
     if (!selectedNode) return;
-    commitTree(patchNode(tree, selectedNode.id, patch));
+    // Coerce names through the (optional) consumer-supplied sanitizer
+    // before the patch lands in the tree. This is the chokepoint for
+    // user-typed names — names imported via the JSON tab (which goes
+    // through `schemaToRoot`, not `handlePatch`) are caught by
+    // `validatePropertyName` instead.
+    const cleaned: Partial<SchemaNode> =
+      sanitizePropertyName && typeof patch.name === "string"
+        ? { ...patch, name: sanitizePropertyName(patch.name) }
+        : patch;
+    commitTree(patchNode(tree, selectedNode.id, cleaned));
   }
 
   function handleAddChild(parentId: string) {
@@ -255,6 +287,8 @@ export const JsonSchemaEditor = React.forwardRef<
                 isItemsSlot={isItemsSlot}
                 siblingNames={siblingNames}
                 onChange={handlePatch}
+                validatePropertyName={validatePropertyName}
+                propertyNameHint={propertyNameHint}
               />
             </div>
           </div>

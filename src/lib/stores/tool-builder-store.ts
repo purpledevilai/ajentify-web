@@ -9,14 +9,25 @@ import {
   nodeToSchema,
   schemaToRoot,
 } from "@/components/blocks/json-schema-editor";
+import {
+  detectDeclarationDrift,
+  effectiveFunctionName,
+  paramNamesFromSchema,
+  resetDeclaration as resetDeclarationUtil,
+  sanitizeFunctionName,
+  syncDeclaration,
+  type FunctionDeclaration,
+} from "@/lib/utils/tool-function-decl";
 
 /**
  * Minimal slice of the tool surface area we expose in the builder UI today.
  * `schema` lives here for dirty-tracking and is persisted to a separate
  * ParameterDefinition record on save (create / update / delete depending on
- * before-vs-after state — see `save()` below). Other tool fields
- * (pd_id, pass_context, is_async, is_client_side_tool, stage_id, logical_name)
- * are intentionally excluded — `pd_id` is managed by `save()` indirectly,
+ * before-vs-after state — see `save()` below). `passContext` mirrors
+ * `tool.pass_context` and is part of the form because it affects the
+ * generated `def ...(context):` signature. Other tool fields
+ * (pd_id, is_async, is_client_side_tool, stage_id, logical_name) are
+ * intentionally excluded — `pd_id` is managed by `save()` indirectly,
  * the rest remain whatever the API/SDK set them to.
  */
 type FormState = {
@@ -24,7 +35,14 @@ type FormState = {
   description: string;
   code: string;
   schema: Record<string, unknown>;
+  passContext: boolean;
 };
+
+/** Non-null when the code editor's `def` line doesn't match the
+ *  canonical declaration derived from (name, schema, passContext).
+ *  Triggered by user edits to the code; the page surfaces a banner with
+ *  a "Reset signature" recovery action that calls `resetDeclaration()`. */
+type CodeWarning = "drift" | null;
 
 interface BuilderState {
   toolId: string | null;
@@ -33,14 +51,23 @@ interface BuilderState {
   pdId: string | null;
   original: FormState | null;
   form: FormState | null;
+  codeWarning: CodeWarning;
   hydrating: boolean;
   saving: boolean;
   saveError: string | null;
   notFound: boolean;
   init: (tool_id: string) => Promise<void>;
   setField: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+  /** Force the function declaration in `form.code` to match the canonical
+   *  shape derived from (name, schema, passContext). Used by the "Reset
+   *  signature" button when soft sync gave up because of drift. */
+  resetDeclaration: () => void;
   isDirty: () => boolean;
-  save: () => Promise<void>;
+  /** Resolves to true iff a save actually persisted changes — false for
+   *  no-op calls (no tool / not dirty) and for failures (which surface
+   *  via `saveError`). Used by the page to fire a success toast without
+   *  guessing the outcome from store state. */
+  save: () => Promise<boolean>;
   discard: () => void;
   reset: () => void;
 }
@@ -81,7 +108,34 @@ function fromTool(t: ApiTool, schema: Record<string, unknown>): FormState {
     description: t.description ?? "",
     code: t.code ?? "",
     schema,
+    passContext: t.pass_context,
   };
+}
+
+/** Compute the canonical function declaration implied by the current
+ *  form state. `name` is sanitized into a Python identifier (with a
+ *  fallback when empty) and the parameter list is the schema's
+ *  top-level property names in order. */
+function computeDecl(form: FormState): FunctionDeclaration {
+  return {
+    funcName: effectiveFunctionName(form.name),
+    paramNames: paramNamesFromSchema(form.schema),
+    passContext: form.passContext,
+  };
+}
+
+function paramNamesEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function declEqual(a: FunctionDeclaration, b: FunctionDeclaration): boolean {
+  return (
+    a.funcName === b.funcName &&
+    a.passContext === b.passContext &&
+    paramNamesEqual(a.paramNames, b.paramNames)
+  );
 }
 
 export const useToolBuilderStore = create<BuilderState>((set, get) => ({
@@ -89,6 +143,7 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
   pdId: null,
   original: null,
   form: null,
+  codeWarning: null,
   hydrating: false,
   saving: false,
   saveError: null,
@@ -102,6 +157,7 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
       hydrating: true,
       form: null,
       original: null,
+      codeWarning: null,
       saveError: null,
       notFound: false,
     });
@@ -119,10 +175,16 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
       : undefined;
     const baseSchema = canonicalSchema(pd?.schema ?? EMPTY_SCHEMA);
     const base = fromTool(tool, baseSchema);
+    // Detect-only on init — we never silently mutate persisted code at
+    // load time. If the stored code's `def` line doesn't match what the
+    // form implies (e.g. a tool authored via the API/SDK with hand-rolled
+    // params), the page surfaces a banner with a "Reset signature" action.
+    const drifted = detectDeclarationDrift(base.code, computeDecl(base));
     set({
       form: base,
       original: base,
       pdId: tool.pd_id ?? null,
+      codeWarning: drifted ? "drift" : null,
       hydrating: false,
     });
   },
@@ -130,7 +192,56 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
   setField(key, value) {
     const f = get().form;
     if (!f) return;
-    set({ form: { ...f, [key]: value } });
+
+    // Live-sanitize the name into a Python-safe identifier so
+    // `tool.name` (used directly as `function_name` by the execution
+    // lambda) is always a valid identifier. Length-preserving in the
+    // common case so the input cursor stays put.
+    let nextValue: FormState[typeof key] = value;
+    if (key === "name") {
+      nextValue = sanitizeFunctionName(value as string) as FormState[typeof key];
+    }
+
+    const nextForm: FormState = { ...f, [key]: nextValue };
+
+    // Direct code edits: leave the code alone, but check whether the
+    // user's edits drift from the canonical declaration. Drift triggers
+    // a banner in the page.
+    if (key === "code") {
+      const drifted = detectDeclarationDrift(nextForm.code, computeDecl(nextForm));
+      set({ form: nextForm, codeWarning: drifted ? "drift" : null });
+      return;
+    }
+
+    // Non-code edits: regenerate the managed `def` line in place when
+    // the declaration shape changes. `prevDecl.funcName` is required to
+    // locate the existing def after a rename. We only run the sync
+    // when the declaration actually changed — typing in a property
+    // description shouldn't churn the code field.
+    const prevDecl = computeDecl(f);
+    const nextDecl = computeDecl(nextForm);
+
+    if (declEqual(prevDecl, nextDecl)) {
+      set({ form: nextForm });
+      return;
+    }
+
+    const sync = syncDeclaration(nextForm.code, nextDecl, prevDecl.funcName);
+    set({
+      form: { ...nextForm, code: sync.code },
+      // `replaced` / `inserted` / `unchanged` all leave the code in a
+      // canonical state. Only `drift` means we couldn't safely sync
+      // (non-empty code with no recognizable def). The user can
+      // recover via `resetDeclaration()`.
+      codeWarning: sync.status === "drift" ? "drift" : null,
+    });
+  },
+
+  resetDeclaration() {
+    const f = get().form;
+    if (!f) return;
+    const { code } = resetDeclarationUtil(f.code, computeDecl(f));
+    set({ form: { ...f, code }, codeWarning: null });
   },
 
   isDirty() {
@@ -139,6 +250,7 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
     if (form.name !== original.name) return true;
     if (form.description !== original.description) return true;
     if (form.code !== original.code) return true;
+    if (form.passContext !== original.passContext) return true;
     // Schemas use canonical JSON so reordered keys don't read as dirty.
     if (canonicalJson(form.schema) !== canonicalJson(original.schema)) {
       return true;
@@ -148,8 +260,8 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
 
   async save() {
     const { toolId, pdId, form, original } = get();
-    if (!toolId || !form || !original) return;
-    if (!get().isDirty()) return;
+    if (!toolId || !form || !original) return false;
+    if (!get().isDirty()) return false;
     set({ saving: true, saveError: null });
 
     try {
@@ -195,6 +307,9 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
         toolPatch.description = form.description;
       }
       if (form.code !== original.code) toolPatch.code = form.code;
+      if (form.passContext !== original.passContext) {
+        toolPatch.pass_context = form.passContext;
+      }
       if (newPdId !== pdId) toolPatch.pd_id = newPdId;
 
       if (Object.keys(toolPatch).length > 0) {
@@ -220,21 +335,34 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
       // what the editor would emit on the next render.
       const persistedSchema = canonicalSchema(form.schema);
       const next: FormState = { ...form, schema: persistedSchema };
+      const drifted = detectDeclarationDrift(next.code, computeDecl(next));
       set({
         form: next,
         original: next,
         pdId: newPdId,
+        codeWarning: drifted ? "drift" : null,
         saving: false,
       });
+      return true;
     } catch (e) {
       const fallback = e instanceof Error ? e.message : "Save failed";
       set({ saving: false, saveError: getErrorMessage(e, fallback) });
+      return false;
     }
   },
 
   discard() {
     const { original } = get();
-    if (original) set({ form: { ...original }, saveError: null });
+    if (!original) return;
+    // Discard reverts to the original snapshot, which may itself have
+    // been drifted at load time. Recompute the warning so the banner
+    // reflects what's actually in the editor now.
+    const drifted = detectDeclarationDrift(original.code, computeDecl(original));
+    set({
+      form: { ...original },
+      codeWarning: drifted ? "drift" : null,
+      saveError: null,
+    });
   },
 
   reset() {
@@ -243,6 +371,7 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
       pdId: null,
       original: null,
       form: null,
+      codeWarning: null,
       hydrating: false,
       saving: false,
       saveError: null,

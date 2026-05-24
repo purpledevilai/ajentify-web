@@ -2,16 +2,23 @@
 
 import { useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/primitives/button";
 import { CodeEditor } from "@/components/primitives/code-editor";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { BuilderSection } from "@/components/blocks/builder-section";
 import { JsonSchemaEditor } from "@/components/blocks/json-schema-editor";
 import { useToolBuilderStore } from "@/lib/stores/tool-builder-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
+import {
+  isValidIdentifier,
+  sanitizeIdentifier,
+} from "@/lib/utils/tool-function-decl";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,17 +27,27 @@ import { cn } from "@/lib/utils";
  */
 const DEFAULT_NEW_TOOL_NAME = "untitled_tool";
 
+/** Inline validator for the schema editor. The typed-input path is
+ *  already coerced to a valid identifier by `sanitizeIdentifier`, so this
+ *  only fires for names imported via the JSON tab. */
+function validateParameterName(name: string): string | null {
+  if (isValidIdentifier(name)) return null;
+  return "Not a valid Python identifier — use letters, digits, and underscores only (no leading digit).";
+}
+
 export default function ToolBuilderPage() {
   const params = useParams<{ tool_id: string }>();
   const tool_id = params.tool_id;
 
   const form = useToolBuilderStore((s) => s.form);
+  const codeWarning = useToolBuilderStore((s) => s.codeWarning);
   const hydrating = useToolBuilderStore((s) => s.hydrating);
   const saving = useToolBuilderStore((s) => s.saving);
   const saveError = useToolBuilderStore((s) => s.saveError);
   const notFound = useToolBuilderStore((s) => s.notFound);
   const init = useToolBuilderStore((s) => s.init);
   const setField = useToolBuilderStore((s) => s.setField);
+  const resetDeclaration = useToolBuilderStore((s) => s.resetDeclaration);
   const save = useToolBuilderStore((s) => s.save);
   const discard = useToolBuilderStore((s) => s.discard);
   const isDirty = useToolBuilderStore((s) => s.isDirty);
@@ -163,7 +180,10 @@ export default function ToolBuilderPage() {
           </Button>
           <Button
             variant="gradient"
-            onClick={save}
+            onClick={async () => {
+              const ok = await save();
+              if (ok) toast.success("Tool saved");
+            }}
             disabled={!dirty || saving}
           >
             {saving && <Loader2 className="size-4 animate-spin" />}
@@ -180,13 +200,51 @@ export default function ToolBuilderPage() {
         <JsonSchemaEditor
           value={form.schema}
           onChange={(s) => setField("schema", s)}
+          sanitizePropertyName={sanitizeIdentifier}
+          validatePropertyName={validateParameterName}
+          propertyNameHint="Used directly as a Python parameter. Letters, digits, and underscores only."
         />
       </BuilderSection>
 
       <BuilderSection
         title="Code"
         description="Python function whose name matches the tool name. Runs in a sandbox with requests, pandas, numpy, and a curated standard library."
+        actions={
+          <label className="flex items-center gap-2 select-none">
+            <div className="text-right">
+              <Label className="cursor-pointer text-sm">Pass context</Label>
+              <p className="text-muted-foreground text-xs">
+                Inject runtime context as an extra parameter.
+              </p>
+            </div>
+            <Switch
+              checked={form.passContext}
+              onCheckedChange={(v) => setField("passContext", v)}
+            />
+          </label>
+        }
       >
+        {codeWarning === "drift" && (
+          <div className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Function signature is out of sync</p>
+              <p className="text-muted-foreground text-xs">
+                The <code className="font-mono">def</code> line in your code doesn&apos;t match the
+                tool name, parameters, or pass-context setting. Saving keeps
+                your version as-is.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={resetDeclaration}
+              className="shrink-0"
+            >
+              Reset signature
+            </Button>
+          </div>
+        )}
         <CodeEditor
           language="python"
           value={form.code}

@@ -50,6 +50,14 @@ interface FieldDetailsPanelProps {
    *  to flag duplicate names. */
   siblingNames: string[];
   onChange: (patch: Partial<SchemaNode>) => void;
+  /** Optional name validator forwarded from `JsonSchemaEditor`. Returns
+   *  an error message to show inline, or null when valid. Primarily
+   *  catches names imported via the JSON tab that bypass the editor's
+   *  `sanitizePropertyName`. */
+  validatePropertyName?: (name: string) => string | null;
+  /** Optional helper text shown under the name input. Lets the consumer
+   *  explain the naming constraint (e.g. "Valid Python identifier"). */
+  propertyNameHint?: React.ReactNode;
 }
 
 export function FieldDetailsPanel({
@@ -58,6 +66,8 @@ export function FieldDetailsPanel({
   isItemsSlot,
   siblingNames,
   onChange,
+  validatePropertyName,
+  propertyNameHint,
 }: FieldDetailsPanelProps) {
   if (!node) {
     return (
@@ -71,6 +81,14 @@ export function FieldDetailsPanel({
   const nameLocked = isRoot || isItemsSlot;
   const duplicateName =
     !nameLocked && !!node.name && siblingNames.includes(node.name);
+  // Run consumer validation only against non-empty names — empty is a
+  // transient mid-edit state and the schema serializer drops unnamed
+  // nodes anyway.
+  const validationError =
+    !nameLocked && !!node.name && validatePropertyName
+      ? validatePropertyName(node.name)
+      : null;
+  const showError = duplicateName || !!validationError;
 
   return (
     <div className="space-y-5">
@@ -82,12 +100,18 @@ export function FieldDetailsPanel({
           onChange={(e) => onChange({ name: e.target.value })}
           placeholder="propertyName"
           disabled={nameLocked}
-          aria-invalid={duplicateName || undefined}
+          aria-invalid={showError || undefined}
         />
         {duplicateName && (
           <p className="text-destructive text-xs">
             A sibling field already uses this name.
           </p>
+        )}
+        {!duplicateName && validationError && (
+          <p className="text-destructive text-xs">{validationError}</p>
+        )}
+        {!showError && !nameLocked && propertyNameHint && (
+          <p className="text-muted-foreground text-xs">{propertyNameHint}</p>
         )}
         {isItemsSlot && (
           <p className="text-muted-foreground text-xs">

@@ -15,6 +15,7 @@ import {
 } from "@/components/blocks/data-table";
 import { useOrgStore } from "@/lib/stores/org-store";
 import { useToolsStore, toolsActions } from "@/lib/stores/tools-store";
+import { TOOL_BUILDER_PREFETCH_HREF } from "@/lib/constants/builder-routes";
 import { usePdStore } from "@/lib/stores/parameter-definitions-store";
 import { useStagesStore } from "@/lib/stores/stages-store";
 import { getErrorMessage } from "@/lib/api/errors";
@@ -65,6 +66,10 @@ export default function ToolsPage() {
       ensureStagesLoaded();
     }
   }, [orgId, ensureLoaded, ensurePds, ensureStagesLoaded]);
+
+  useEffect(() => {
+    router.prefetch(TOOL_BUILDER_PREFETCH_HREF);
+  }, [router]);
 
   const stagesById = useMemo(() => {
     const m = new Map<string, ApiStage>();

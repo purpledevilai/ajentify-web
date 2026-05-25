@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
+import { AGENT_BUILDER_PREFETCH_HREF } from "@/lib/constants/builder-routes";
 import { useToolsStore } from "@/lib/stores/tools-store";
 import { useStagesStore } from "@/lib/stores/stages-store";
 import { useOrgStore } from "@/lib/stores/org-store";
@@ -52,6 +53,11 @@ export default function AgentsPage() {
       ensureStagesLoaded();
     }
   }, [orgId, ensureLoaded, ensureStagesLoaded]);
+
+  // Warm the shared builder page chunk once — same module for every agent id.
+  useEffect(() => {
+    router.prefetch(AGENT_BUILDER_PREFETCH_HREF);
+  }, [router]);
 
   const toolsById = useMemo(() => {
     const m = new Map<string, ApiTool>();

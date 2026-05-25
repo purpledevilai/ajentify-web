@@ -186,6 +186,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
   } = props;
 
   const router = useRouter();
+  const [navigatingKey, setNavigatingKey] = React.useState<string | null>(null);
 
   const [query, setQuery] = React.useState("");
   const [sort, setSort] = React.useState<{
@@ -300,7 +301,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
       onRowClick(row);
       return;
     }
-    if (rowHref) router.push(rowHref(row));
+    if (rowHref) {
+      setNavigatingKey(getRowKey(row));
+      router.push(rowHref(row));
+    }
   }
 
   /* Bulk action runner --------------------------------------------------- */
@@ -580,12 +584,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
               sorted.map((row) => {
                 const key = getRowKey(row);
                 const isSelected = selected.has(key);
+                const isNavigating = navigatingKey === key;
                 const clickable = bulkSelectMode || !!rowHref || !!onRowClick;
                 return (
                   <tr
                     key={key}
                     role={clickable ? "button" : undefined}
                     tabIndex={clickable ? 0 : undefined}
+                    aria-busy={isNavigating || undefined}
                     aria-selected={bulkSelectMode ? isSelected : undefined}
                     onClick={clickable ? () => activateRow(row) : undefined}
                     onKeyDown={
@@ -599,12 +605,13 @@ export function DataTable<T>(props: DataTableProps<T>) {
                         : undefined
                     }
                     className={cn(
-                      "group/row outline-none transition-colors",
+                      "group/row relative outline-none transition-colors",
                       clickable &&
                         "hover:bg-muted/40 focus-visible:bg-muted/60 cursor-pointer",
                       isSelected &&
                         bulkSelectMode &&
-                        "bg-primary/5 hover:bg-primary/10"
+                        "bg-primary/5 hover:bg-primary/10",
+                      isNavigating && "pointer-events-none opacity-70"
                     )}
                   >
                     {bulkSelectMode && (
@@ -616,7 +623,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                         />
                       </td>
                     )}
-                    {columns.map((c) => (
+                    {columns.map((c, colIdx) => (
                       <td
                         key={c.id}
                         className={cn(
@@ -626,7 +633,17 @@ export function DataTable<T>(props: DataTableProps<T>) {
                           c.cellClassName
                         )}
                       >
-                        {c.cell(row)}
+                        {colIdx === 0 && isNavigating ? (
+                          <span className="flex min-w-0 items-center gap-2">
+                            <Loader2
+                              className="text-primary size-4 shrink-0 animate-spin"
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1">{c.cell(row)}</span>
+                          </span>
+                        ) : (
+                          c.cell(row)
+                        )}
                       </td>
                     ))}
                   </tr>

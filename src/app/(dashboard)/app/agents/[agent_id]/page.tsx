@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuilderSection } from "@/components/blocks/builder-section";
+import { AddToolDialog } from "@/components/blocks/add-tool-dialog";
 import { useAgentBuilderStore } from "@/lib/stores/agent-builder-store";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
@@ -106,6 +107,7 @@ export default function AgentBuilderPage() {
   const promptCollapsed = !promptExpanded && !promptFocused;
 
   const [toolsExpanded, setToolsExpanded] = useState(false);
+  const [addToolOpen, setAddToolOpen] = useState(false);
 
   useEffect(() => {
     // Warm dependent stores. The builder needs agents (for lookup), tools +
@@ -382,8 +384,7 @@ export default function AgentBuilderPage() {
             type="button"
             variant="outline"
             size="sm"
-            // No-op placeholder — picker UI is intentionally deferred.
-            onClick={() => {}}
+            onClick={() => setAddToolOpen(true)}
           >
             <Plus className="size-4" />
             Add tool
@@ -535,6 +536,13 @@ export default function AgentBuilderPage() {
           })()
         )}
       </BuilderSection>
+
+      <AddToolDialog
+        open={addToolOpen}
+        onOpenChange={setAddToolOpen}
+        attachedIds={form.tools}
+        onChangeAttached={(ids) => setField("tools", ids)}
+      />
 
       <BuilderSection title="Model" description="LLM that powers this agent.">
         <Select

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bot, CheckSquare, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/primitives/button";
@@ -320,20 +321,26 @@ function ToolsCell({
         </div>
         {ids.map((id) => {
           const t = toolsById.get(id);
+          if (!t) {
+            return (
+              <div
+                key={id}
+                className="text-muted-foreground px-2 py-1 font-mono text-xs italic"
+                title={id}
+              >
+                unknown ({id.slice(0, 8)}…)
+              </div>
+            );
+          }
           return (
-            <div
+            <Link
               key={id}
-              className="px-2 py-1 font-mono text-xs"
-              title={t ? undefined : id}
+              href={`/app/tools/${id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-foreground hover:bg-muted hover:text-primary focus-visible:bg-muted block rounded-sm px-2 py-1 font-mono text-xs transition-colors focus:outline-none"
             >
-              {t ? (
-                <span className="text-foreground">{t.name}</span>
-              ) : (
-                <span className="text-muted-foreground italic">
-                  unknown ({id.slice(0, 8)}…)
-                </span>
-              )}
-            </div>
+              {t.name}
+            </Link>
           );
         })}
       </DropdownMenuContent>

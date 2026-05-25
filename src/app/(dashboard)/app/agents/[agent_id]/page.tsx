@@ -81,6 +81,21 @@ export default function AgentBuilderPage() {
   const titleRef = useRef<HTMLInputElement>(null);
   const didAutoFocus = useRef(false);
 
+  // Snapshotted at mount: lets the back button pop history when the user
+  // navigated in (e.g. from a chat surface or stage page) and fall back
+  // to the agents index when this page was loaded directly. Snapshot once
+  // so intra-page route changes don't flip the flag mid-session.
+  const canGoBack = useRef(false);
+  useEffect(() => {
+    canGoBack.current =
+      typeof window !== "undefined" && window.history.length > 1;
+  }, []);
+
+  function handleBack() {
+    if (canGoBack.current) router.back();
+    else router.push("/app/agents");
+  }
+
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [promptExpanded, setPromptExpanded] = useState(false);
   const [promptFocused, setPromptFocused] = useState(false);
@@ -241,14 +256,13 @@ export default function AgentBuilderPage() {
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           <Button
-            asChild
             variant="ghost"
             size="icon"
             className="mt-1 shrink-0"
+            onClick={handleBack}
+            aria-label="Back"
           >
-            <Link href="/app/agents" aria-label="Back to agents">
-              <ArrowLeft className="size-4" />
-            </Link>
+            <ArrowLeft className="size-4" />
           </Button>
           <div className="min-w-0 flex-1">
             <input
@@ -406,11 +420,15 @@ export default function AgentBuilderPage() {
                 <div className="space-y-2">
                   {visibleTools.map((id) => {
                     const t = toolsById.get(id);
-                    return (
-                      <div
-                        key={id}
-                        className="group border-border hover:border-foreground/20 flex items-center gap-3 rounded-md border p-3 transition-colors"
-                      >
+                    const linkable = t?.source === "custom";
+                    const cardClass = cn(
+                      "group border-border flex items-center gap-3 rounded-md border p-3 transition-colors",
+                      linkable
+                        ? "hover:border-foreground/30 hover:bg-muted/30"
+                        : "hover:border-foreground/20"
+                    );
+                    const inner = (
+                      <>
                         <div className="bg-muted text-primary flex size-8 shrink-0 items-center justify-center rounded-md">
                           <Wrench className="size-4" />
                         </div>
@@ -457,16 +475,34 @@ export default function AgentBuilderPage() {
                           variant="ghost"
                           size="icon"
                           aria-label="Remove tool"
-                          onClick={() =>
+                          onClick={(e) => {
+                            // Stop the wrapping Link (for custom tools) from
+                            // navigating when the user is trying to detach
+                            // the tool from this agent.
+                            e.preventDefault();
+                            e.stopPropagation();
                             setField(
                               "tools",
                               form.tools.filter((other) => other !== id)
-                            )
-                          }
+                            );
+                          }}
                           className="text-muted-foreground hover:text-destructive size-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                         >
                           <X className="size-4" />
                         </Button>
+                      </>
+                    );
+                    return linkable ? (
+                      <Link
+                        key={id}
+                        href={`/app/tools/${id}`}
+                        className={cardClass}
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={id} className={cardClass}>
+                        {inner}
                       </div>
                     );
                   })}

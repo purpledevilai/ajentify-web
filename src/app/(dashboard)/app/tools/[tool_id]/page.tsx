@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -38,6 +38,22 @@ function validateParameterName(name: string): string | null {
 export default function ToolBuilderPage() {
   const params = useParams<{ tool_id: string }>();
   const tool_id = params.tool_id;
+  const router = useRouter();
+
+  // Snapshotted at mount: lets the back button pop history when the user
+  // navigated in (e.g. from an agent's tool list) and fall back to the
+  // tools index when this page was loaded directly. We snapshot once so
+  // intra-page route changes don't flip the flag mid-session.
+  const canGoBack = useRef(false);
+  useEffect(() => {
+    canGoBack.current =
+      typeof window !== "undefined" && window.history.length > 1;
+  }, []);
+
+  function handleBack() {
+    if (canGoBack.current) router.back();
+    else router.push("/app/tools");
+  }
 
   const form = useToolBuilderStore((s) => s.form);
   const codeWarning = useToolBuilderStore((s) => s.codeWarning);
@@ -126,14 +142,13 @@ export default function ToolBuilderPage() {
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-1 items-start gap-2">
           <Button
-            asChild
             variant="ghost"
             size="icon"
             className="mt-1 shrink-0"
+            onClick={handleBack}
+            aria-label="Back"
           >
-            <Link href="/app/tools" aria-label="Back to tools">
-              <ArrowLeft className="size-4" />
-            </Link>
+            <ArrowLeft className="size-4" />
           </Button>
           <div className="min-w-0 flex-1">
             <input

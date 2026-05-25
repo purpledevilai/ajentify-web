@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
-  Loader2,
   Plus,
   Trash2,
   Wrench,
@@ -28,6 +27,8 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuilderSection } from "@/components/blocks/builder-section";
+import { BuilderPageHeader } from "@/components/blocks/builder-page-header";
+import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
 import { AddToolDialog } from "@/components/blocks/add-tool-dialog";
 import { useAgentBuilderStore } from "@/lib/stores/agent-builder-store";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
@@ -78,6 +79,7 @@ export default function AgentBuilderPage() {
   const ensureModels = useModelsStore((s) => s.ensureLoaded);
   const ensureAgents = useAgentsStore((s) => s.ensureLoaded);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const titleRef = useRef<HTMLInputElement>(null);
   const didAutoFocus = useRef(false);
@@ -243,7 +245,6 @@ export default function AgentBuilderPage() {
   const dirty = isDirty();
 
   async function onDelete() {
-    if (!confirm("Delete this agent? This cannot be undone.")) return;
     setDeleting(true);
     try {
       await agentsActions.delete(agent_id);
@@ -255,70 +256,23 @@ export default function AgentBuilderPage() {
 
   return (
     <div className="space-y-6 pb-24">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-1 items-start gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mt-1 shrink-0"
-            onClick={handleBack}
-            aria-label="Back"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <div className="min-w-0 flex-1">
-            <input
-              ref={titleRef}
-              value={form.agent_name}
-              onChange={(e) => setField("agent_name", e.target.value)}
-              placeholder={DEFAULT_NEW_AGENT_NAME}
-              aria-label="Agent name"
-              spellCheck={false}
-              className={cn(
-                "font-display w-full rounded-md bg-transparent px-2 py-1 text-2xl font-semibold tracking-tight outline-none",
-                "placeholder:text-muted-foreground/60",
-                "hover:bg-muted/60 focus:bg-muted/60",
-                "focus-visible:ring-ring/40 focus-visible:ring-2",
-                "-ml-2 transition-colors"
-              )}
-            />
-            <textarea
-              value={form.agent_description}
-              onChange={(e) =>
-                setField("agent_description", e.target.value)
-              }
-              placeholder="Add a description…"
-              aria-label="Agent description"
-              rows={1}
-              className={cn(
-                "text-muted-foreground field-sizing-content mt-0.5 w-full resize-none rounded-md bg-transparent px-2 py-1 text-sm outline-none",
-                "placeholder:text-muted-foreground/60",
-                "hover:bg-muted/60 focus:bg-muted/60",
-                "focus-visible:ring-ring/40 focus-visible:ring-2",
-                "-ml-2 transition-colors"
-              )}
-            />
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 pt-1">
-          {dirty && <Badge variant="secondary">Unsaved changes</Badge>}
-          <Button
-            variant="ghost"
-            onClick={discard}
-            disabled={!dirty || saving}
-          >
-            Discard
-          </Button>
-          <Button
-            variant="gradient"
-            onClick={save}
-            disabled={!dirty || saving}
-          >
-            {saving && <Loader2 className="size-4 animate-spin" />}
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </div>
-      </div>
+      <BuilderPageHeader
+        onBack={handleBack}
+        name={form.agent_name}
+        onNameChange={(v) => setField("agent_name", v)}
+        namePlaceholder={DEFAULT_NEW_AGENT_NAME}
+        nameAriaLabel="Agent name"
+        nameInputRef={titleRef}
+        nameClassName="font-display"
+        description={form.agent_description}
+        onDescriptionChange={(v) => setField("agent_description", v)}
+        descriptionPlaceholder="Add a description…"
+        descriptionAriaLabel="Agent description"
+        dirty={dirty}
+        saving={saving}
+        onDiscard={discard}
+        onSave={save}
+      />
       {saveError && <p className="text-destructive text-sm">{saveError}</p>}
 
       <BuilderSection
@@ -418,25 +372,25 @@ export default function AgentBuilderPage() {
                     </Button>
                   </div>
                 )}
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   {visibleTools.map((id) => {
                     const t = toolsById.get(id);
                     const linkable = t?.source === "custom";
                     const cardClass = cn(
-                      "group border-border flex items-center gap-3 rounded-md border p-3 transition-colors",
+                      "group border-border flex w-full min-w-0 items-start gap-3 rounded-md border p-3 transition-colors",
                       linkable
                         ? "hover:border-foreground/30 hover:bg-muted/30"
                         : "hover:border-foreground/20"
                     );
                     const inner = (
                       <>
-                        <div className="bg-muted text-primary flex size-8 shrink-0 items-center justify-center rounded-md">
+                        <div className="bg-muted text-primary mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md">
                           <Wrench className="size-4" />
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 overflow-hidden">
                           {t ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="font-mono text-sm break-words">
+                            <>
+                              <div className="font-mono text-sm wrap-break-word break-all">
                                 <span className="text-foreground font-medium">
                                   {t.name}
                                 </span>
@@ -459,14 +413,14 @@ export default function AgentBuilderPage() {
                               {t.source === "default" && (
                                 <Badge
                                   variant="outline"
-                                  className="text-muted-foreground"
+                                  className="text-muted-foreground mt-1.5"
                                 >
                                   Built-in
                                 </Badge>
                               )}
-                            </div>
+                            </>
                           ) : (
-                            <div className="text-muted-foreground font-mono text-sm italic">
+                            <div className="text-muted-foreground font-mono text-sm break-all italic">
                               unknown ({id.slice(0, 8)}…)
                             </div>
                           )}
@@ -632,14 +586,25 @@ export default function AgentBuilderPage() {
           </div>
           <Button
             variant="destructive"
-            onClick={onDelete}
+            onClick={() => setDeleteConfirmOpen(true)}
             disabled={deleting}
           >
             <Trash2 className="size-4" />
-            {deleting ? "Deleting…" : "Delete"}
+            Delete
           </Button>
         </div>
       </BuilderSection>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete this agent?"
+        description="This will permanently remove this agent. This cannot be undone."
+        confirmLabel="Delete"
+        loadingLabel="Deleting"
+        loading={deleting}
+        onConfirm={onDelete}
+      />
     </div>
   );
 }

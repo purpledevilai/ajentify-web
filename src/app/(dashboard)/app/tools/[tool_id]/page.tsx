@@ -207,52 +207,87 @@ export default function ToolBuilderPage() {
       </BuilderSection>
 
       <BuilderSection
-        title="Code"
-        description="Python function whose name matches the tool name. Runs in a sandbox with requests, pandas, numpy, and a curated standard library."
-        actions={
-          <label className="flex items-center gap-2 select-none">
-            <div className="text-right">
-              <Label className="cursor-pointer text-sm">Pass context</Label>
-              <p className="text-muted-foreground text-xs">
-                Inject runtime context as an extra parameter.
-              </p>
-            </div>
-            <Switch
-              checked={form.passContext}
-              onCheckedChange={(v) => setField("passContext", v)}
-            />
-          </label>
-        }
+        title="Behavior"
+        description="Control how this tool runs at invocation time."
       >
-        {codeWarning === "drift" && (
-          <div className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">Function signature is out of sync</p>
-              <p className="text-muted-foreground text-xs">
-                The <code className="font-mono">def</code> line in your code doesn&apos;t match the
-                tool name, parameters, or pass-context setting. Saving keeps
-                your version as-is.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={resetDeclaration}
-              className="shrink-0"
-            >
-              Reset signature
-            </Button>
-          </div>
-        )}
-        <CodeEditor
-          language="python"
-          value={form.code}
-          onChange={(v) => setField("code", v)}
-          minHeight="24rem"
-          maxHeight="40rem"
+        <ToggleRow
+          label="Pass context"
+          description="Inject the runtime context object (env, tokens, conversation metadata) as an extra parameter to your function."
+          checked={form.passContext}
+          onCheckedChange={(v) => setField("passContext", v)}
+        />
+        <ToggleRow
+          label="Client-side execution"
+          description="Delegate execution to the client. The agent only generates the call parameters; the client runs the tool and posts the result back into the conversation."
+          checked={form.isClientSideTool}
+          onCheckedChange={(v) => setField("isClientSideTool", v)}
         />
       </BuilderSection>
+
+      {!form.isClientSideTool && (
+        <BuilderSection
+          title="Code"
+          description="Python function whose name matches the tool name. Runs in a sandbox with requests, pandas, numpy, and a curated standard library."
+        >
+          {codeWarning === "drift" && (
+            <div className="flex items-start gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Function signature is out of sync</p>
+                <p className="text-muted-foreground text-xs">
+                  The <code className="font-mono">def</code> line in your code doesn&apos;t match the
+                  tool name, parameters, or pass-context setting. Saving keeps
+                  your version as-is.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={resetDeclaration}
+                className="shrink-0"
+              >
+                Reset signature
+              </Button>
+            </div>
+          )}
+          <CodeEditor
+            language="python"
+            value={form.code}
+            onChange={(v) => setField("code", v)}
+            minHeight="24rem"
+            maxHeight="40rem"
+          />
+        </BuilderSection>
+      )}
     </div>
+  );
+}
+
+/** Row used inside the Behavior section: a labeled description on the
+ *  left and a switch on the right, with the whole row clickable so the
+ *  toggle target stays generous. */
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="hover:bg-muted/40 flex cursor-pointer items-start justify-between gap-4 rounded-md px-3 py-2 transition-colors select-none">
+      <div className="min-w-0 flex-1">
+        <Label className="cursor-pointer text-sm font-medium">{label}</Label>
+        <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        className="mt-0.5"
+      />
+    </label>
   );
 }

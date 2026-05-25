@@ -25,10 +25,13 @@ import {
  * ParameterDefinition record on save (create / update / delete depending on
  * before-vs-after state — see `save()` below). `passContext` mirrors
  * `tool.pass_context` and is part of the form because it affects the
- * generated `def ...(context):` signature. Other tool fields
- * (pd_id, is_async, is_client_side_tool, stage_id, logical_name) are
- * intentionally excluded — `pd_id` is managed by `save()` indirectly,
- * the rest remain whatever the API/SDK set them to.
+ * generated `def ...(context):` signature. `isClientSideTool` mirrors
+ * `tool.is_client_side_tool` — when on, the agent only generates the call
+ * parameters and the client executes the tool, so the Code section (and
+ * its declaration-sync logic) is hidden. Other tool fields
+ * (pd_id, is_async, stage_id, logical_name) are intentionally excluded —
+ * `pd_id` is managed by `save()` indirectly, the rest remain whatever the
+ * API/SDK set them to.
  */
 type FormState = {
   name: string;
@@ -36,6 +39,7 @@ type FormState = {
   code: string;
   schema: Record<string, unknown>;
   passContext: boolean;
+  isClientSideTool: boolean;
 };
 
 /** Non-null when the code editor's `def` line doesn't match the
@@ -109,6 +113,7 @@ function fromTool(t: ApiTool, schema: Record<string, unknown>): FormState {
     code: t.code ?? "",
     schema,
     passContext: t.pass_context,
+    isClientSideTool: t.is_client_side_tool,
   };
 }
 
@@ -179,7 +184,11 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
     // load time. If the stored code's `def` line doesn't match what the
     // form implies (e.g. a tool authored via the API/SDK with hand-rolled
     // params), the page surfaces a banner with a "Reset signature" action.
-    const drifted = detectDeclarationDrift(base.code, computeDecl(base));
+    // For client-side tools the Code section is hidden, so suppress the
+    // warning — the user has no way to act on it from here.
+    const drifted =
+      !base.isClientSideTool &&
+      detectDeclarationDrift(base.code, computeDecl(base));
     set({
       form: base,
       original: base,
@@ -206,10 +215,34 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
 
     // Direct code edits: leave the code alone, but check whether the
     // user's edits drift from the canonical declaration. Drift triggers
-    // a banner in the page.
+    // a banner in the page. Skipped when the tool is client-side — the
+    // Code section is hidden, so any warning would be unactionable.
     if (key === "code") {
-      const drifted = detectDeclarationDrift(nextForm.code, computeDecl(nextForm));
+      const drifted =
+        !nextForm.isClientSideTool &&
+        detectDeclarationDrift(nextForm.code, computeDecl(nextForm));
       set({ form: nextForm, codeWarning: drifted ? "drift" : null });
+      return;
+    }
+
+    // Toggling the client-side flag itself: never touch `code` (we want
+    // to preserve any work the user had if they toggle back). When
+    // entering client-side mode the drift warning is hidden because the
+    // Code section is hidden; when leaving it we re-evaluate against the
+    // current code so a previously-stashed signature gets flagged.
+    if (key === "isClientSideTool") {
+      const drifted =
+        !nextForm.isClientSideTool &&
+        detectDeclarationDrift(nextForm.code, computeDecl(nextForm));
+      set({ form: nextForm, codeWarning: drifted ? "drift" : null });
+      return;
+    }
+
+    // While client-side: skip declaration sync entirely. The user can't
+    // see the Code section, so silently rewriting their stashed code as
+    // they tweak parameters or the name would be a surprise on toggle-back.
+    if (nextForm.isClientSideTool) {
+      set({ form: nextForm });
       return;
     }
 
@@ -239,7 +272,7 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
 
   resetDeclaration() {
     const f = get().form;
-    if (!f) return;
+    if (!f || f.isClientSideTool) return;
     const { code } = resetDeclarationUtil(f.code, computeDecl(f));
     set({ form: { ...f, code }, codeWarning: null });
   },
@@ -251,6 +284,7 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
     if (form.description !== original.description) return true;
     if (form.code !== original.code) return true;
     if (form.passContext !== original.passContext) return true;
+    if (form.isClientSideTool !== original.isClientSideTool) return true;
     // Schemas use canonical JSON so reordered keys don't read as dirty.
     if (canonicalJson(form.schema) !== canonicalJson(original.schema)) {
       return true;
@@ -310,6 +344,9 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
       if (form.passContext !== original.passContext) {
         toolPatch.pass_context = form.passContext;
       }
+      if (form.isClientSideTool !== original.isClientSideTool) {
+        toolPatch.is_client_side_tool = form.isClientSideTool;
+      }
       if (newPdId !== pdId) toolPatch.pd_id = newPdId;
 
       if (Object.keys(toolPatch).length > 0) {
@@ -335,7 +372,9 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
       // what the editor would emit on the next render.
       const persistedSchema = canonicalSchema(form.schema);
       const next: FormState = { ...form, schema: persistedSchema };
-      const drifted = detectDeclarationDrift(next.code, computeDecl(next));
+      const drifted =
+        !next.isClientSideTool &&
+        detectDeclarationDrift(next.code, computeDecl(next));
       set({
         form: next,
         original: next,
@@ -357,7 +396,9 @@ export const useToolBuilderStore = create<BuilderState>((set, get) => ({
     // Discard reverts to the original snapshot, which may itself have
     // been drifted at load time. Recompute the warning so the banner
     // reflects what's actually in the editor now.
-    const drifted = detectDeclarationDrift(original.code, computeDecl(original));
+    const drifted =
+      !original.isClientSideTool &&
+      detectDeclarationDrift(original.code, computeDecl(original));
     set({
       form: { ...original },
       codeWarning: drifted ? "drift" : null,

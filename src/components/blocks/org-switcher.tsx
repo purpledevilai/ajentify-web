@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useOrgStore } from "@/lib/stores/org-store";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function OrgSwitcher() {
+  const router = useRouter();
   const organizations = useOrgStore((s) => s.organizations);
   const activeOrgId = useOrgStore((s) => s.activeOrgId);
   const setActiveOrg = useOrgStore((s) => s.setActiveOrg);
@@ -30,7 +32,11 @@ export function OrgSwitcher() {
         {organizations.map((o) => (
           <DropdownMenuItem
             key={o.id}
-            onClick={() => setActiveOrg(o.id)}
+            onClick={() => {
+              if (o.id === activeOrgId) return;
+              setActiveOrg(o.id);
+              router.push("/app/agents");
+            }}
             className="justify-between"
           >
             <span>{o.name}</span>

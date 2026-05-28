@@ -12,6 +12,7 @@ export const DEFAULT_TOOL_CATEGORY_ORDER = [
   "Outlook",
   "Google Calendar",
   "Google Maps",
+  "Web Chat",
 ] as const;
 
 export type DefaultToolCategory =
@@ -70,5 +71,9 @@ export const TOOL_CATEGORY_COPY: Record<
   "Google Maps": {
     description:
       "Search places, fetch place details, and compute routes. Use for location-aware agents — travel planning, store finders, or directions. The model passes natural-language queries; results come back as structured place and route data.",
+  },
+  "Web Chat": {
+    description:
+      "Let the agent see and act on whatever page the user is currently looking at when your agent is embedded in a web app via @ajentify/chat. These are client-side tools — they run inside the host application rather than on our servers. get_page_data returns the current page's JSON snapshot plus the list of actions it exposes; do_page_action invokes one of those actions with arguments. Attach both together when you want the agent to inspect screens, pick items, fill forms, or trigger UI flows on behalf of the user. They are no-ops unless the host app has mounted the matching useGetPageData / useDoPageAction hooks, so they're safe to leave on for agents that may or may not be used inside a chat-component-enabled app.",
   },
 };

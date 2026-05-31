@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/primitives/button";
+import { CopyButton } from "@/components/blocks/copy-button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -274,6 +275,19 @@ export default function AgentBuilderPage() {
         onSave={save}
       />
       {saveError && <p className="text-destructive text-sm">{saveError}</p>}
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-10 -mt-2">
+        <div className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
+          <span className="uppercase tracking-wide">Agent ID</span>
+          <span
+            className="text-foreground/80 max-w-full truncate font-mono"
+            title={agent_id}
+          >
+            {agent_id}
+          </span>
+          <CopyButton value={agent_id} label="Copy agent ID" />
+        </div>
+      </div>
 
       <BuilderSection
         title="System prompt"

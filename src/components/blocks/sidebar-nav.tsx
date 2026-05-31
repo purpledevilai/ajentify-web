@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Wrench, Home, FileText } from "lucide-react";
+import { Bot, Wrench, Home, FileText, KeyRound } from "lucide-react";
 import { Logo } from "@/components/primitives/logo";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ const items: Array<{
   { href: "/app", label: "Overview", icon: Home },
   { href: "/app/agents", label: "Agents", icon: Bot },
   { href: "/app/tools", label: "Tools", icon: Wrench },
+  { href: "/app/api-keys", label: "API Keys", icon: KeyRound },
   { href: "/docs", label: "Docs", icon: FileText },
 ];
 

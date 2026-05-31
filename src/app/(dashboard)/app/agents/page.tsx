@@ -162,6 +162,25 @@ export default function AgentsPage() {
           ),
       },
       {
+        id: "agent_id",
+        header: "Agent ID",
+        sortable: true,
+        sortValue: (a) => a.agent_id,
+        searchValue: (a) => a.agent_id,
+        width: "160px",
+        cell: (a) => (
+          <div className="flex min-w-0 items-center gap-1">
+            <span
+              className="text-muted-foreground truncate font-mono text-xs"
+              title={a.agent_id}
+            >
+              {a.agent_id.slice(0, 8)}…
+            </span>
+            <CopyButton value={a.agent_id} label="Copy agent ID" />
+          </div>
+        ),
+      },
+      {
         id: "tools",
         header: "Tools",
         sortable: true,

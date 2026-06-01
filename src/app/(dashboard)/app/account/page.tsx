@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Building2, Mail, User as UserIcon } from "lucide-react";
+import { useGetPageData } from "@ajentify/chat";
 import { PageHeader } from "@/components/blocks/page-header";
 import {
   Card,
@@ -35,6 +36,29 @@ export default function AccountPage() {
   const [confirmInput, setConfirmInput] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Read-only page: surface profile data, no actions. Deleting the account
+  // is a user-only action (type-to-confirm modal). useGetPageData must run
+  // unconditionally before any early returns.
+  useGetPageData(
+    () => ({
+      data: {
+        page: "account",
+        user: user
+          ? {
+              id: user.id,
+              email: user.email,
+              first_name: user.first_name,
+              last_name: user.last_name,
+              organizations: user.organizations,
+            }
+          : null,
+        note: "Read-only profile. Deleting an account is a user action.",
+      },
+      actions: {},
+    }),
+    [user],
+  );
 
   if (!user) return null;
 

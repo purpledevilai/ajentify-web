@@ -3,6 +3,7 @@ import { fontDisplay, fontSans } from "@/lib/fonts";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+import "@ajentify/chat/styles.css";
 
 export const metadata: Metadata = {
   title: "Ajentify",

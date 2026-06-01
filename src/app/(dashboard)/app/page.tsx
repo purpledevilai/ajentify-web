@@ -1,7 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { useGetPageData } from "@ajentify/chat";
 import { PageHeader } from "@/components/blocks/page-header";
 
 export default function DashboardHomePage() {
+  useGetPageData(
+    () => ({
+      data: {
+        page: "overview",
+        note:
+          "Placeholder dashboard. No data or actions yet — point the user at /app/agents to get started.",
+      },
+      actions: {},
+    }),
+    [],
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader

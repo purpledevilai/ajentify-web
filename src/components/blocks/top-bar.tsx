@@ -4,6 +4,7 @@ import { OrgSwitcher } from "./org-switcher";
 import { UserMenu } from "./user-menu";
 import { MobileSidebar } from "./mobile-sidebar";
 import { ThemeToggle } from "@/components/primitives/theme-toggle";
+import { AjChatToggle } from "@/components/primitives/aj-chat-toggle";
 
 export function TopBar() {
   return (
@@ -13,6 +14,7 @@ export function TopBar() {
         <OrgSwitcher />
       </div>
       <div className="flex items-center gap-2">
+        <AjChatToggle />
         <ThemeToggle />
         <UserMenu />
       </div>

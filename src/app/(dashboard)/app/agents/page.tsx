@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bot, CheckSquare, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { z } from "zod";
+import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { Button } from "@/components/primitives/button";
 import { PageHeader } from "@/components/blocks/page-header";
 import { EmptyState } from "@/components/blocks/empty-state";
@@ -42,6 +44,11 @@ export default function AgentsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<{ columnId: string; direction: "asc" | "desc" } | null>({
+    columnId: "updated_at",
+    direction: "desc",
+  });
 
   useEffect(() => {
     // Agents store already declares tools as a dependency, so calling
@@ -71,7 +78,7 @@ export default function AgentsPage() {
     return m;
   }, [stages]);
 
-  async function onCreate() {
+  const onCreate = useCallback(async () => {
     setCreateError(null);
     setCreating(true);
     try {
@@ -82,11 +89,94 @@ export default function AgentsPage() {
         is_public: false,
       });
       router.push(`/app/agents/${a.agent_id}`);
+      return a;
     } catch (err: unknown) {
       setCreateError(getErrorMessage(err, "Unable to create agent"));
       setCreating(false);
+      throw err;
     }
-  }
+  }, [router]);
+
+  // --- Aj page hooks ------------------------------------------------------
+  // What the agent sees + which buttons it can press on this page.
+  const SetSearchArgs = useMemo(() => z.object({ query: z.string() }), []);
+  const SetSortArgs = useMemo(
+    () =>
+      z.object({
+        columnId: z.enum([
+          "name",
+          "stage",
+          "logical_name",
+          "agent_id",
+          "tools",
+          "updated_at",
+        ]),
+        direction: z.enum(["asc", "desc"]),
+      }),
+    [],
+  );
+
+  useGetPageData(
+    () => ({
+      data: {
+        page: "agents",
+        agent_count: data.length,
+        search: query,
+        sort,
+        agents_summary: data
+          .slice(0, 50)
+          .map((a) => ({
+            agent_id: a.agent_id,
+            agent_name: a.agent_name,
+            agent_description: a.agent_description,
+            stage_id: a.stage_id,
+            logical_name: a.logical_name,
+            updated_at: a.updated_at,
+            tool_count: a.tools?.length ?? 0,
+          })),
+        note:
+          "Use list_agents for the full set of fields. Saving and deleting agents are user actions.",
+      },
+      actions: {
+        set_search: {
+          description: "Filter the visible agents by a search query.",
+          argsSchema: z.toJSONSchema(SetSearchArgs),
+        },
+        set_sort: {
+          description:
+            "Sort the agents table by one of the allowed columns, ascending or descending.",
+          argsSchema: z.toJSONSchema(SetSortArgs),
+        },
+        create_new: {
+          description:
+            "Click the '+ New agent' button: creates an Untitled agent and routes to its detail page. The user still has to save any subsequent changes.",
+          argsSchema: { type: "object", properties: {}, additionalProperties: false },
+        },
+      },
+    }),
+    [data, query, sort, SetSearchArgs, SetSortArgs],
+  );
+
+  useDoPageAction(
+    async (key, args) => {
+      if (key === "set_search") {
+        const parsed = SetSearchArgs.parse(args);
+        setQuery(parsed.query);
+        return { ok: true, query: parsed.query };
+      }
+      if (key === "set_sort") {
+        const parsed = SetSortArgs.parse(args);
+        setSort({ columnId: parsed.columnId, direction: parsed.direction });
+        return { ok: true, sort: parsed };
+      }
+      if (key === "create_new") {
+        const a = await onCreate();
+        return { ok: true, agent_id: a?.agent_id };
+      }
+      return { ok: false, error: `unknown action: ${key}` };
+    },
+    [onCreate, SetSearchArgs, SetSortArgs],
+  );
 
   const columns = useMemo<ColumnDef<ApiAgent>[]>(
     () => [
@@ -284,6 +374,10 @@ export default function AgentsPage() {
         loaded={loaded}
         defaultSort={{ columnId: "updated_at", direction: "desc" }}
         searchPlaceholder="Search agents…"
+        query={query}
+        onQueryChange={setQuery}
+        sort={sort}
+        onSortChange={setSort}
         bulkSelectMode={bulkMode}
         onBulkSelectModeChange={setBulkMode}
         bulkActions={bulkActions}

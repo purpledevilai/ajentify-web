@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckSquare, Plus, Trash2, Wrench } from "lucide-react";
+import { z } from "zod";
+import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
 import { PageHeader } from "@/components/blocks/page-header";
@@ -42,8 +44,13 @@ export default function ToolsPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<{ columnId: string; direction: "asc" | "desc" } | null>({
+    columnId: "updated_at",
+    direction: "desc",
+  });
 
-  async function onCreate() {
+  const onCreate = useCallback(async () => {
     setCreateError(null);
     setCreating(true);
     try {
@@ -53,11 +60,90 @@ export default function ToolsPage() {
         code: "",
       });
       router.push(`/app/tools/${t.tool_id}`);
+      return t;
     } catch (err: unknown) {
       setCreateError(getErrorMessage(err, "Unable to create tool"));
       setCreating(false);
+      throw err;
     }
-  }
+  }, [router]);
+
+  const SetSearchArgs = useMemo(() => z.object({ query: z.string() }), []);
+  const SetSortArgs = useMemo(
+    () =>
+      z.object({
+        columnId: z.enum([
+          "name",
+          "language",
+          "stage",
+          "logical_name",
+          "updated_at",
+        ]),
+        direction: z.enum(["asc", "desc"]),
+      }),
+    [],
+  );
+
+  useGetPageData(
+    () => ({
+      data: {
+        page: "tools",
+        tool_count: data.length,
+        search: query,
+        sort,
+        tools_summary: data.slice(0, 50).map((t) => ({
+          tool_id: t.tool_id,
+          name: t.name,
+          description: t.description,
+          stage_id: t.stage_id,
+          logical_name: t.logical_name,
+          is_async: t.is_async,
+          is_client_side_tool: t.is_client_side_tool,
+          updated_at: t.updated_at,
+        })),
+        note:
+          "Use list_tools for the full set of fields. Saving and deleting tools are user actions.",
+      },
+      actions: {
+        set_search: {
+          description: "Filter the visible tools by a search query.",
+          argsSchema: z.toJSONSchema(SetSearchArgs),
+        },
+        set_sort: {
+          description:
+            "Sort the tools table by one of the allowed columns, ascending or descending.",
+          argsSchema: z.toJSONSchema(SetSortArgs),
+        },
+        create_new: {
+          description:
+            "Click the '+ New tool' button: creates an untitled_tool and routes to its detail page. The user still has to save any subsequent changes.",
+          argsSchema: { type: "object", properties: {}, additionalProperties: false },
+        },
+      },
+    }),
+    [data, query, sort, SetSearchArgs, SetSortArgs],
+  );
+
+  useDoPageAction(
+    async (key, args) => {
+      if (key === "set_search") {
+        const parsed = SetSearchArgs.parse(args);
+        setQuery(parsed.query);
+        return { ok: true, query: parsed.query };
+      }
+      if (key === "set_sort") {
+        const parsed = SetSortArgs.parse(args);
+        setSort({ columnId: parsed.columnId, direction: parsed.direction });
+        return { ok: true, sort: parsed };
+      }
+      if (key === "create_new") {
+        const t = await onCreate();
+        return { ok: true, tool_id: t?.tool_id };
+      }
+      return { ok: false, error: `unknown action: ${key}` };
+    },
+    [onCreate, SetSearchArgs, SetSortArgs],
+  );
 
   useEffect(() => {
     if (orgId) {
@@ -248,6 +334,10 @@ export default function ToolsPage() {
         loaded={loaded}
         defaultSort={{ columnId: "updated_at", direction: "desc" }}
         searchPlaceholder="Search tools…"
+        query={query}
+        onQueryChange={setQuery}
+        sort={sort}
+        onSortChange={setSort}
         bulkSelectMode={bulkMode}
         onBulkSelectModeChange={setBulkMode}
         bulkActions={bulkActions}

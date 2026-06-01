@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { z } from "zod";
+import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { Button } from "@/components/primitives/button";
 import { CodeEditor } from "@/components/primitives/code-editor";
 import { Label } from "@/components/ui/label";
@@ -108,6 +110,103 @@ export default function ToolBuilderPage() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
+
+  // --- Aj page hooks ------------------------------------------------------
+  // Expose the current draft + a per-field set_* action for every editable
+  // field on this page. Save and Delete are deliberately NOT exposed — those
+  // remain user actions. The schema is passed as a JSON value (any shape)
+  // so the agent can hand back a full JSON Schema in one shot.
+  const SetSchemaArgs = useMemo(
+    () => z.object({ schema: z.unknown() }),
+    [],
+  );
+
+  useGetPageData(
+    () => ({
+      data: {
+        page: "tool_detail",
+        tool_id,
+        not_found: notFound,
+        loading: hydrating || !form,
+        is_dirty: form ? isDirty() : false,
+        code_warning: codeWarning,
+        draft: form,
+        note:
+          "You can set any field via the matching set_* action; saving and deleting are user actions. The schema is a JSON Schema (Draft 2020-12) object — set_schema accepts the full schema as a JSON value.",
+      },
+      actions: {
+        set_name: {
+          description:
+            "Set the tool name. Should be a Python identifier (letters, digits, underscores; no leading digit).",
+          argsSchema: z.toJSONSchema(z.object({ value: z.string() })),
+        },
+        set_description: {
+          description: "Set the tool description.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.string() })),
+        },
+        set_schema: {
+          description:
+            "Replace the tool's parameter JSON Schema. Pass the full schema as `schema` — typically a JSON Schema Draft 2020-12 object with `type: 'object'` and a `properties` map.",
+          argsSchema: z.toJSONSchema(SetSchemaArgs),
+        },
+        set_code: {
+          description:
+            "Replace the Python source for this tool. Only meaningful when is_client_side_tool is false; ignored otherwise.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.string() })),
+        },
+        set_pass_context: {
+          description:
+            "Toggle whether the runtime context object is passed to the tool function as an extra parameter.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.boolean() })),
+        },
+        set_is_client_side_tool: {
+          description:
+            "Toggle client-side execution. When true, the tool runs in the browser and `code` is unused.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.boolean() })),
+        },
+      },
+    }),
+    [tool_id, notFound, hydrating, form, codeWarning, isDirty, SetSchemaArgs],
+  );
+
+  useDoPageAction(
+    async (key, args) => {
+      if (!form) {
+        return { ok: false, error: "tool draft not yet hydrated" };
+      }
+      switch (key) {
+        case "set_name":
+          setField("name", String((args as { value: unknown }).value ?? ""));
+          return { ok: true };
+        case "set_description":
+          setField(
+            "description",
+            String((args as { value: unknown }).value ?? ""),
+          );
+          return { ok: true };
+        case "set_schema": {
+          const parsed = SetSchemaArgs.parse(args);
+          setField("schema", parsed.schema as never);
+          return { ok: true };
+        }
+        case "set_code":
+          setField("code", String((args as { value: unknown }).value ?? ""));
+          return { ok: true };
+        case "set_pass_context":
+          setField("passContext", Boolean((args as { value: unknown }).value));
+          return { ok: true };
+        case "set_is_client_side_tool":
+          setField(
+            "isClientSideTool",
+            Boolean((args as { value: unknown }).value),
+          );
+          return { ok: true };
+        default:
+          return { ok: false, error: `unknown action: ${key}` };
+      }
+    },
+    [form, setField, SetSchemaArgs],
+  );
 
   if (notFound) {
     return (

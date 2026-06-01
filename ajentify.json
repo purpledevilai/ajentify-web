@@ -1,0 +1,93 @@
+{
+  "$schema": "https://api.ajentify.com/docs/manifest-schema.json",
+  "tools": {
+    "view_docs": {
+      "name": "view_docs",
+      "description": "Fetch a page of the Ajentify API docs as markdown. Path defaults to '/docs' (the docs index). Pass a sub-path to drill in, e.g. '/docs/POST/context' or '/docs/web-chat-quickstart'.",
+      "input_schema_file": "schemas/viewDocs.ts#ViewDocsInput",
+      "is_client_side_tool": true
+    },
+    "list_agents": {
+      "name": "list_agents",
+      "description": "List all agents in the current organization. Each entry includes agent_id, name, description, prompt, model_id, tools, and configuration flags.",
+      "is_client_side_tool": true
+    },
+    "list_tools": {
+      "name": "list_tools",
+      "description": "List all custom tools in the current organization. Each entry includes tool_id, name, description, JSON schema, language, and flags (is_client_side_tool, is_async, pass_context).",
+      "is_client_side_tool": true
+    },
+    "list_default_tools": {
+      "name": "list_default_tools",
+      "description": "List all built-in default tools available to any agent (web search, memory, calendar, etc.). Use this together with list_tools to find a tool_id when wiring up an agent.",
+      "is_client_side_tool": true
+    },
+    "list_api_keys": {
+      "name": "list_api_keys",
+      "description": "List all API keys for the current organization. Returns token hints (last 8 chars) and validity status, never the raw tokens.",
+      "is_client_side_tool": true
+    },
+    "list_sres": {
+      "name": "list_sres",
+      "description": "List all Structured Response Endpoints (SREs) in the current organization. Each entry includes sre_id, name, output schema, prompt template, and model.",
+      "is_client_side_tool": true
+    },
+    "list_integrations": {
+      "name": "list_integrations",
+      "description": "List all OAuth-style integrations (Gmail, Outlook, Google Calendar, Jira, etc.) configured for the current organization.",
+      "is_client_side_tool": true
+    },
+    "list_parameter_definitions": {
+      "name": "list_parameter_definitions",
+      "description": "List all parameter definitions (reusable JSON schemas) in the current organization.",
+      "is_client_side_tool": true
+    },
+    "list_data_windows": {
+      "name": "list_data_windows",
+      "description": "List all data windows (real-time cached data sources for agents) in the current organization.",
+      "is_client_side_tool": true
+    },
+    "list_json_documents": {
+      "name": "list_json_documents",
+      "description": "List all JSON documents (agent memory / structured data stores) in the current organization.",
+      "is_client_side_tool": true
+    },
+    "list_stages": {
+      "name": "list_stages",
+      "description": "List all deploy stages in the current organization (logical groups of deployed agents, tools, and SREs).",
+      "is_client_side_tool": true
+    },
+    "list_models": {
+      "name": "list_models",
+      "description": "List all available LLM models, their providers, context window sizes, and pricing.",
+      "is_client_side_tool": true
+    }
+  },
+  "sres": {},
+  "agents": {
+    "aj": {
+      "name": "Aj",
+      "description": "Ajentify's in-dashboard assistant. Navigates the UI, inspects resources, and helps users design agents, tools, and API integrations.",
+      "prompt_file": "prompts/aj.md",
+      "is_public": false,
+      "agent_speaks_first": false,
+      "tools": [
+        "get_page_data",
+        "do_page_action",
+        "navigate",
+        "view_docs",
+        "list_agents",
+        "list_tools",
+        "list_default_tools",
+        "list_api_keys",
+        "list_sres",
+        "list_integrations",
+        "list_parameter_definitions",
+        "list_data_windows",
+        "list_json_documents",
+        "list_stages",
+        "list_models"
+      ]
+    }
+  }
+}

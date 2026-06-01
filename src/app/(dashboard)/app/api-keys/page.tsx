@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
+import { z } from "zod";
+import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
 import { PageHeader } from "@/components/blocks/page-header";
@@ -45,22 +47,100 @@ export default function ApiKeysPage() {
   const [revoking, setRevoking] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
 
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<{ columnId: string; direction: "asc" | "desc" } | null>({
+    columnId: "created_at",
+    direction: "desc",
+  });
+
   useEffect(() => {
     if (orgId) ensureLoaded();
   }, [orgId, ensureLoaded]);
 
-  async function onCreate() {
+  const onCreate = useCallback(async () => {
     setCreateError(null);
     setCreating(true);
     try {
       const key = await apiKeysActions.generate({ type: "org" });
       setNewKey(key);
+      return key;
     } catch (err: unknown) {
       setCreateError(getErrorMessage(err, "Unable to create API key"));
+      throw err;
     } finally {
       setCreating(false);
     }
-  }
+  }, []);
+
+  const SetSearchArgs = useMemo(() => z.object({ query: z.string() }), []);
+  const SetSortArgs = useMemo(
+    () =>
+      z.object({
+        columnId: z.enum(["token_hint", "status", "created_at"]),
+        direction: z.enum(["asc", "desc"]),
+      }),
+    [],
+  );
+
+  useGetPageData(
+    () => ({
+      data: {
+        page: "api_keys",
+        key_count: data.length,
+        search: query,
+        sort,
+        keys_summary: data.slice(0, 50).map((k) => ({
+          api_key_id: k.api_key_id,
+          token_hint: k.token_hint,
+          valid: k.valid,
+          created_at: k.created_at,
+        })),
+        note:
+          "Use list_api_keys for the full set of fields. Revoking is a user action. create_new mints a new key and opens a one-time dialog showing the raw token — the user must close the dialog after copying.",
+      },
+      actions: {
+        set_search: {
+          description: "Filter the visible API keys by a search query.",
+          argsSchema: z.toJSONSchema(SetSearchArgs),
+        },
+        set_sort: {
+          description: "Sort the API keys table by one of the allowed columns.",
+          argsSchema: z.toJSONSchema(SetSortArgs),
+        },
+        create_new: {
+          description:
+            "Click the '+ New API key' button: mints a fresh org API key and opens the one-time token dialog. The token is shown to the user only once.",
+          argsSchema: { type: "object", properties: {}, additionalProperties: false },
+        },
+      },
+    }),
+    [data, query, sort, SetSearchArgs, SetSortArgs],
+  );
+
+  useDoPageAction(
+    async (key, args) => {
+      if (key === "set_search") {
+        const parsed = SetSearchArgs.parse(args);
+        setQuery(parsed.query);
+        return { ok: true, query: parsed.query };
+      }
+      if (key === "set_sort") {
+        const parsed = SetSortArgs.parse(args);
+        setSort({ columnId: parsed.columnId, direction: parsed.direction });
+        return { ok: true, sort: parsed };
+      }
+      if (key === "create_new") {
+        const minted = await onCreate();
+        return {
+          ok: true,
+          api_key_id: minted?.api_key_id,
+          note: "The raw token is shown in a one-time dialog to the user.",
+        };
+      }
+      return { ok: false, error: `unknown action: ${key}` };
+    },
+    [onCreate, SetSearchArgs, SetSortArgs],
+  );
 
   async function onConfirmRevoke() {
     if (!revokeTarget) return;
@@ -195,6 +275,10 @@ export default function ApiKeysPage() {
         loaded={loaded}
         defaultSort={{ columnId: "created_at", direction: "desc" }}
         searchPlaceholder="Search API keys…"
+        query={query}
+        onQueryChange={setQuery}
+        sort={sort}
+        onSortChange={setSort}
         emptyState={
           <EmptyState
             icon={KeyRound}

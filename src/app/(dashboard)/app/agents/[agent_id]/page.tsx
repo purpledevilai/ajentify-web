@@ -12,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { z } from "zod";
+import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { Button } from "@/components/primitives/button";
 import { CopyButton } from "@/components/blocks/copy-button";
 import { Textarea } from "@/components/ui/textarea";
@@ -213,6 +215,126 @@ export default function AgentBuilderPage() {
     }
     return m;
   }, [tools, defaultTools, paramDefs]);
+
+  // --- Aj page hooks ------------------------------------------------------
+  // Expose the current draft + a per-field set_* action for each editable
+  // field on this page. Save and Delete are deliberately NOT exposed — those
+  // remain user actions (human-in-the-loop). Hooks must run unconditionally
+  // before any early returns.
+  const PromptArgNamesArgs = useMemo(
+    () => z.object({ names: z.array(z.string()) }),
+    [],
+  );
+
+  useGetPageData(
+    () => ({
+      data: {
+        page: "agent_detail",
+        agent_id,
+        not_found: notFound,
+        loading: hydrating || !form,
+        is_dirty: form ? isDirty() : false,
+        draft: form,
+        attached_tools: form?.tools.map((id) => {
+          const t = toolsById.get(id);
+          return t
+            ? { tool_id: id, name: t.name, source: t.source, description: t.description }
+            : { tool_id: id, name: null, source: "unknown" };
+        }),
+        available_models: models.map((m) => ({
+          model: m.model,
+          model_provider: m.model_provider,
+        })),
+        note:
+          "You can set any field via the matching set_* action; saving and deleting are user actions. To add or remove tools, point the user at the '+ Add tool' dialog.",
+      },
+      actions: {
+        set_name: {
+          description: "Set the agent's display name.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.string() })),
+        },
+        set_description: {
+          description: "Set the agent's description.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.string() })),
+        },
+        set_prompt: {
+          description: "Replace the agent's system prompt with `value`.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.string() })),
+        },
+        set_model_id: {
+          description:
+            "Set the LLM model the agent uses. Use list_models to see allowed values.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.string() })),
+        },
+        set_is_public: {
+          description: "Toggle whether the agent is publicly addressable.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.boolean() })),
+        },
+        set_agent_speaks_first: {
+          description:
+            "Toggle whether the agent sends an initial message on context create.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.boolean() })),
+        },
+        set_uses_prompt_args: {
+          description: "Toggle whether the prompt expects template arguments.",
+          argsSchema: z.toJSONSchema(z.object({ value: z.boolean() })),
+        },
+        set_prompt_arg_names: {
+          description: "Replace the list of prompt argument names.",
+          argsSchema: z.toJSONSchema(PromptArgNamesArgs),
+        },
+      },
+    }),
+    [agent_id, notFound, hydrating, form, toolsById, models, isDirty, PromptArgNamesArgs],
+  );
+
+  useDoPageAction(
+    async (key, args) => {
+      if (!form) {
+        return { ok: false, error: "agent draft not yet hydrated" };
+      }
+      switch (key) {
+        case "set_name":
+          setField("agent_name", String((args as { value: unknown }).value ?? ""));
+          return { ok: true };
+        case "set_description":
+          setField(
+            "agent_description",
+            String((args as { value: unknown }).value ?? ""),
+          );
+          return { ok: true };
+        case "set_prompt":
+          setField("prompt", String((args as { value: unknown }).value ?? ""));
+          return { ok: true };
+        case "set_model_id":
+          setField("model_id", String((args as { value: unknown }).value ?? ""));
+          return { ok: true };
+        case "set_is_public":
+          setField("is_public", Boolean((args as { value: unknown }).value));
+          return { ok: true };
+        case "set_agent_speaks_first":
+          setField(
+            "agent_speaks_first",
+            Boolean((args as { value: unknown }).value),
+          );
+          return { ok: true };
+        case "set_uses_prompt_args":
+          setField(
+            "uses_prompt_args",
+            Boolean((args as { value: unknown }).value),
+          );
+          return { ok: true };
+        case "set_prompt_arg_names": {
+          const parsed = PromptArgNamesArgs.parse(args);
+          setField("prompt_arg_names", parsed.names);
+          return { ok: true };
+        }
+        default:
+          return { ok: false, error: `unknown action: ${key}` };
+      }
+    },
+    [form, setField, PromptArgNamesArgs],
+  );
 
   if (notFound) {
     return (

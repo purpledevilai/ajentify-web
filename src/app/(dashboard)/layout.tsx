@@ -6,6 +6,7 @@ import { SidebarNav } from "@/components/blocks/sidebar-nav";
 import { TopBar } from "@/components/blocks/top-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
+import { AjChatShell } from "@/components/chat/aj-chat-shell";
 
 export default function DashboardLayout({
   children,
@@ -46,10 +47,12 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen">
       <SidebarNav className="hidden md:flex" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
-      </div>
+      <AjChatShell>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar />
+          <main className="flex-1 p-4 md:p-6">{children}</main>
+        </div>
+      </AjChatShell>
     </div>
   );
 }

@@ -108,6 +108,22 @@ export interface DataTableProps<T> {
   bulkActions?: BulkAction<T>[];
   /** Used in toast copy: e.g. `{ singular: "agent", plural: "agents" }`. */
   resourceLabel?: { singular: string; plural: string };
+
+  /**
+   * Optional controlled mode for the search query. When provided, the table
+   * defers to the parent for the value and reports changes via `onQueryChange`.
+   * Lets the page (or an in-app agent via `useDoPageAction`) drive the
+   * filter from outside.
+   */
+  query?: string;
+  onQueryChange?: (next: string) => void;
+
+  /**
+   * Optional controlled mode for the sort state. Same shape as `defaultSort`,
+   * passing `null` clears the sort.
+   */
+  sort?: { columnId: string; direction: SortDirection } | null;
+  onSortChange?: (next: { columnId: string; direction: SortDirection } | null) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -183,13 +199,20 @@ export function DataTable<T>(props: DataTableProps<T>) {
     onBulkSelectModeChange,
     bulkActions = [],
     resourceLabel,
+    query: queryProp,
+    onQueryChange,
+    sort: sortProp,
+    onSortChange,
   } = props;
 
   const router = useRouter();
   const [navigatingKey, setNavigatingKey] = React.useState<string | null>(null);
 
-  const [query, setQuery] = React.useState("");
-  const [sort, setSort] = React.useState<{
+  // Internal fallbacks used only when the corresponding controlled prop is
+  // not supplied. When the parent passes a value, the internal state still
+  // exists but is ignored at render time.
+  const [internalQuery, setInternalQuery] = React.useState("");
+  const [internalSort, setInternalSort] = React.useState<{
     columnId: string | null;
     direction: SortDirection | null;
   }>(() =>
@@ -197,6 +220,41 @@ export function DataTable<T>(props: DataTableProps<T>) {
       ? { columnId: defaultSort.columnId, direction: defaultSort.direction }
       : { columnId: null, direction: null }
   );
+
+  const isQueryControlled = queryProp !== undefined;
+  const query = isQueryControlled ? queryProp : internalQuery;
+  const setQuery = (next: string) => {
+    if (!isQueryControlled) setInternalQuery(next);
+    onQueryChange?.(next);
+  };
+
+  const isSortControlled = sortProp !== undefined;
+  const sort = React.useMemo<{
+    columnId: string | null;
+    direction: SortDirection | null;
+  }>(
+    () =>
+      isSortControlled
+        ? sortProp ?? { columnId: null, direction: null }
+        : internalSort,
+    [isSortControlled, sortProp, internalSort],
+  );
+  const setSort: React.Dispatch<
+    React.SetStateAction<{ columnId: string | null; direction: SortDirection | null }>
+  > = (action) => {
+    const next =
+      typeof action === "function"
+        ? (action as (
+            prev: { columnId: string | null; direction: SortDirection | null },
+          ) => { columnId: string | null; direction: SortDirection | null })(sort)
+        : action;
+    if (!isSortControlled) setInternalSort(next);
+    onSortChange?.(
+      next.columnId && next.direction
+        ? { columnId: next.columnId, direction: next.direction }
+        : null,
+    );
+  };
 
   const [selected, setSelected] = React.useState<Set<string>>(() => new Set());
 

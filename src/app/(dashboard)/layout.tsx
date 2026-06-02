@@ -6,7 +6,7 @@ import { SidebarNav } from "@/components/blocks/sidebar-nav";
 import { TopBar } from "@/components/blocks/top-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
-import { AjChatShell } from "@/components/chat/aj-chat-shell";
+import { AjChatProvider, AjChatPanel } from "@/components/chat/aj-chat-shell";
 
 export default function DashboardLayout({
   children,
@@ -45,14 +45,23 @@ export default function DashboardLayout({
   if (!user) return null; // mid-redirect to /login
 
   return (
-    <div className="flex min-h-screen">
-      <SidebarNav className="hidden md:flex" />
-      <AjChatShell>
-        <div className="flex min-w-0 flex-1 flex-col">
+    // Lock the dashboard to exact viewport height (h-screen + overflow-hidden
+    // on the column) so the inline ChatPanel — which stretches to fill its
+    // parent — always fits between the TopBar and the bottom of the viewport.
+    // The dashboard's own scroll is delegated to <main> instead of the body.
+    // The `AjentifyProvider` wraps the entire dashboard column so the
+    // TopBar's `<AjChatToggle />` and the docked `<AjChatPanel />` share
+    // the same chat state via `useChatPanel()`.
+    <AjChatProvider>
+      <div className="flex h-screen overflow-hidden">
+        <SidebarNav className="hidden md:flex" />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <TopBar />
-          <main className="flex-1 p-4 md:p-6">{children}</main>
+          <AjChatPanel>
+            <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+          </AjChatPanel>
         </div>
-      </AjChatShell>
-    </div>
+      </div>
+    </AjChatProvider>
   );
 }

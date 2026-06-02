@@ -69,6 +69,7 @@
       "name": "Aj",
       "description": "Ajentify's in-dashboard assistant. Navigates the UI, inspects resources, and helps users design agents, tools, and API integrations.",
       "prompt_file": "prompts/aj.md",
+      "model_id": "gpt-5.2",
       "is_public": false,
       "agent_speaks_first": false,
       "tools": [

@@ -2,6 +2,12 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* `@ajentify/chat@^0.2` auto-injects its own stylesheet on first mount and
+ * styles every chat surface via flat `.aj-*` selectors. No layer dance,
+ * no preflight conflict. The chat's tokens are full CSS colours, so the
+ * provider's `themeBridge: 'shadcn'` aliases our own `--background`,
+ * `--primary`, ... straight through. */
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

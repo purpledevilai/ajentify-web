@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AjentifyProvider,
   defineClientSideTools,
-  type AjentifyEvent,
+  type AjentifyProxyRequest,
 } from "@ajentify/chat";
 import { ChatPanel } from "@ajentify/chat/ui";
 
@@ -42,18 +42,9 @@ import { useModelsStore } from "@/lib/stores/models-store";
  * </AjChatProvider>
  * ```
  *
- * v0.2 simplifications:
- *  - The chat's stylesheet auto-injects (no `@layer ajentify-chat` dance).
- *  - Panel open/close is owned by the provider — `<AjChatToggle />` in the
- *    TopBar talks to it via `useChatPanel()`.
- *  - `defineClientSideTools<Tools>` types every tool's args + return.
- *  - No more `classNames` patch-overs; layout is driven by the chat's CSS
- *    variables and looks correct off the bat.
- *
- * `onAjentifyEvent` still goes through the dashboard's own authenticated
- * `api.post` so we inherit the bearer-token refresh wiring. The only piece
- * of work it does here is unwrap `{ token }` for `generate_access_token`,
- * which the upstream `POST /ajentify-event` returns wrapped.
+ * `onAjentifyProxyRequest` goes through the dashboard's own authenticated
+ * `api.post` so we inherit the bearer-token refresh wiring. The proxy
+ * returns Ajentify API responses unchanged — the SDK handles unwrapping.
  */
 type AjTools = {
   navigate: { args: { path?: string; url?: string; route?: string }; result: { ok: boolean; path?: string; error?: string } };
@@ -71,12 +62,8 @@ type AjTools = {
   list_models: { args: Record<string, never>; result: unknown };
 };
 
-async function onAjentifyEvent(event: AjentifyEvent): Promise<unknown> {
-  const payload = await api.post<unknown>("/ajentify-event", event);
-  if (event.type === "generate_access_token") {
-    return (payload as { token: string }).token;
-  }
-  return payload;
+async function onAjentifyProxyRequest(request: AjentifyProxyRequest): Promise<unknown> {
+  return api.post<unknown>("/ajentify-event", request);
 }
 
 export function AjChatProvider({ children }: { children: React.ReactNode }) {
@@ -145,7 +132,7 @@ export function AjChatProvider({ children }: { children: React.ReactNode }) {
   return (
     <AjentifyProvider
       config={{
-        onAjentifyEvent,
+        onAjentifyProxyRequest,
         clientSideTools,
         themeBridge: "shadcn",
         onError: (err) => console.error("[ajentify]", err),

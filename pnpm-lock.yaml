@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ajentify/chat':
-        specifier: ^0.2.3
-        version: 0.2.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
+        specifier: ^0.3.2
+        version: 0.3.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
       '@ajentify/cli':
         specifier: ^0.1.0
         version: 0.1.0(zod@4.4.3)
@@ -126,8 +126,8 @@ packages:
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
 
-  '@ajentify/chat@0.2.3':
-    resolution: {integrity: sha512-xfI4SkGOaSHDzUkAuRcDb0LRE/pRlgjxQRXgP3vZkLGGUpjoJN0Ofv/UcoA5VSQVevVZsZd3hEOsWM02Vf64Tw==}
+  '@ajentify/chat@0.3.2':
+    resolution: {integrity: sha512-XN4+kvvyOr4P7IPocVfo99tp8WKKJBQTr1ZKflA3roojY8HGfw71OLLGzjDysC1Lr1xB7dLz1Nxp3xOuEOm+OA==}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
@@ -4375,7 +4375,7 @@ snapshots:
 
   '@adobe/css-tools@4.4.4': {}
 
-  '@ajentify/chat@0.2.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))':
+  '@ajentify/chat@0.3.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))':
     dependencies:
       '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@radix-ui/react-scroll-area': 1.2.10(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

@@ -63,7 +63,7 @@ type AjTools = {
 };
 
 async function onAjentifyProxyRequest(request: AjentifyProxyRequest): Promise<unknown> {
-  return api.post<unknown>("/ajentify-event", request);
+  return api.post<unknown>("/ajentify-proxy", request);
 }
 
 export function AjChatProvider({ children }: { children: React.ReactNode }) {

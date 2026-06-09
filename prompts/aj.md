@@ -14,6 +14,7 @@ You have two complementary ways of working:
 | `/app/tools` | List of all custom tools in the user's org. | `set_search`, `set_sort`, `create_new` (clicks "+ New tool"). |
 | `/app/tools/{tool_id}` | Edit one tool: name, description, JSON schema (visual or raw JSON), Python code, pass_context, is_client_side_tool. | `set_name`, `set_description`, `set_schema`, `set_code`, `set_pass_context`, `set_is_client_side_tool`. Saving and deletion are the user's job. |
 | `/app/api-keys` | List of API keys for the user's org. | `set_search`, `set_sort`, `create_new` (opens the generate dialog — the user enters a label and clicks Generate). |
+| `/app/usage` | Monthly token usage and cost breakdown for the org. Shows total cost, daily token bar chart, and per-model cost table. | `set_month`, `set_year`, `go_to_current_month`. |
 | `/app/account` | Read-only profile. | (no actions) |
 | `/app` | Dashboard overview. | (no actions) |
 

@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { z } from "zod";
+import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { PageHeader } from "@/components/blocks/page-header";
 import { Button } from "@/components/primitives/button";
 import {
@@ -93,6 +95,89 @@ export default function UsagePage() {
   for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) {
     yearOptions.push(y);
   }
+
+  const SetMonthArgs = useMemo(
+    () =>
+      z.object({
+        month: z
+          .enum([
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+          ])
+          .describe("The month name to view usage for."),
+      }),
+    []
+  );
+
+  const SetYearArgs = useMemo(
+    () =>
+      z.object({
+        year: z
+          .number()
+          .int()
+          .describe("The year to view usage for."),
+      }),
+    []
+  );
+
+  useGetPageData(
+    () => ({
+      data: {
+        page: "usage",
+        selected_month: MONTHS[selectedMonth],
+        selected_year: selectedYear,
+        loading,
+        error,
+        total_cost: usage?.total_cost ?? null,
+        daily_usage_days: usage?.daily_usage.length ?? 0,
+        model_costs: usage?.model_costs.map((mc) => ({
+          model: mc.model,
+          input_tokens: mc.input_tokens,
+          output_tokens: mc.output_tokens,
+          cost: mc.cost,
+        })) ?? [],
+      },
+      actions: {
+        set_month: {
+          description: "Change the selected month to view usage for.",
+          argsSchema: z.toJSONSchema(SetMonthArgs),
+        },
+        set_year: {
+          description: "Change the selected year to view usage for.",
+          argsSchema: z.toJSONSchema(SetYearArgs),
+        },
+        go_to_current_month: {
+          description:
+            "Reset the filters to the current month and year.",
+          argsSchema: { type: "object", properties: {}, additionalProperties: false },
+        },
+      },
+    }),
+    [usage, selectedMonth, selectedYear, loading, error, SetMonthArgs, SetYearArgs]
+  );
+
+  useDoPageAction(
+    async (key, args) => {
+      if (key === "set_month") {
+        const parsed = SetMonthArgs.parse(args);
+        const idx = MONTHS.indexOf(parsed.month);
+        if (idx === -1) return { ok: false, error: "Invalid month name" };
+        setSelectedMonth(idx);
+        return { ok: true, month: parsed.month };
+      }
+      if (key === "set_year") {
+        const parsed = SetYearArgs.parse(args);
+        setSelectedYear(parsed.year);
+        return { ok: true, year: parsed.year };
+      }
+      if (key === "go_to_current_month") {
+        handleCurrentMonth();
+        return { ok: true, month: MONTHS[now.getMonth()], year: now.getFullYear() };
+      }
+      return { ok: false, error: `unknown action: ${key}` };
+    },
+    [SetMonthArgs, SetYearArgs, handleCurrentMonth, now]
+  );
 
   return (
     <div className="space-y-6">

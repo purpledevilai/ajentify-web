@@ -192,6 +192,7 @@ export default function AgentBuilderPage() {
         description?: string | null;
         params: ToolParamName[];
         source: "custom" | "default";
+        isClientSide: boolean;
       }
     >();
     for (const t of tools) {
@@ -203,6 +204,7 @@ export default function AgentBuilderPage() {
         description: t.description,
         params: getToolParamNames(pd),
         source: "custom",
+        isClientSide: t.is_client_side_tool,
       });
     }
     for (const t of defaultTools) {
@@ -211,6 +213,7 @@ export default function AgentBuilderPage() {
         description: t.description,
         params: getParamNamesFromSchema(t.parameters),
         source: "default",
+        isClientSide: !!t.is_client_side_tool,
       });
     }
     return m;
@@ -546,14 +549,22 @@ export default function AgentBuilderPage() {
                                 )}
                                 <span className="text-muted-foreground">)</span>
                               </div>
-                              {t.source === "default" && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                {t.source === "default" && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-muted-foreground"
+                                  >
+                                    Built-in
+                                  </Badge>
+                                )}
                                 <Badge
-                                  variant="outline"
-                                  className="text-muted-foreground mt-1.5"
+                                  variant="secondary"
+                                  className="text-muted-foreground"
                                 >
-                                  Built-in
+                                  {t.isClientSide ? "Client-side" : "Server-side"}
                                 </Badge>
-                              )}
+                              </div>
                             </>
                           ) : (
                             <div className="text-muted-foreground font-mono text-sm break-all italic">

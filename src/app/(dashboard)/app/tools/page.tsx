@@ -74,7 +74,7 @@ export default function ToolsPage() {
       z.object({
         columnId: z.enum([
           "name",
-          "language",
+          "execution",
           "stage",
           "logical_name",
           "updated_at",
@@ -177,16 +177,16 @@ export default function ToolsPage() {
         ),
       },
       {
-        id: "language",
-        header: "Language",
+        id: "execution",
+        header: "Execution",
         sortable: true,
-        // Hardcoded for now — every tool is Python today. When the backend
-        // exposes a `language` field on `ApiTool`, swap this for `t.language`.
-        sortValue: () => "python",
+        sortValue: (t) => (t.is_client_side_tool ? "client" : "server"),
         width: "160px",
         cell: (t) => (
           <div className="flex flex-wrap items-center gap-1">
-            <Badge variant="secondary">Python</Badge>
+            <Badge variant="secondary">
+              {t.is_client_side_tool ? "Client-side" : "Server-side"}
+            </Badge>
             {t.is_async && <Badge variant="outline">Async</Badge>}
           </div>
         ),

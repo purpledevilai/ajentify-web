@@ -9,6 +9,7 @@ import { z } from "zod";
 import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { Button } from "@/components/primitives/button";
 import { CodeEditor } from "@/components/primitives/code-editor";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -271,6 +272,11 @@ export default function ToolBuilderPage() {
           if (ok) toast.success("Tool saved");
         }}
       />
+      <div className="flex flex-wrap items-center gap-2 pl-10 -mt-2">
+        <Badge variant="secondary">
+          {form.isClientSideTool ? "Client-side" : "Server-side"}
+        </Badge>
+      </div>
       {saveError && <p className="text-destructive text-sm">{saveError}</p>}
 
       <BuilderSection

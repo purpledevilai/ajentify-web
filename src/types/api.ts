@@ -339,3 +339,21 @@ export interface UpdateSREParams {
 export interface GetSREsResponse {
   sres: ApiStructuredResponseEndpoint[];
 }
+
+export interface DailyUsage {
+  date: string;
+  total_tokens: number;
+}
+
+export interface ModelCost {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost: string;
+}
+
+export interface UsageResponse {
+  daily_usage: DailyUsage[];
+  total_cost: string;
+  model_costs: ModelCost[];
+}

@@ -4,6 +4,8 @@ import { useOrgStore } from "./org-store";
 import type {
   ApiStage,
   CreateStageParams,
+  DeleteStageMode,
+  Manifest,
   UpdateStageParams,
 } from "@/types/api";
 
@@ -31,8 +33,11 @@ export const stagesActions = {
     useStagesStore.getState().upsert(s);
     return s;
   },
-  async delete(stage_id: string) {
-    await stagesApi.delete(stage_id);
+  async delete(stage_id: string, mode: DeleteStageMode = "detach") {
+    await stagesApi.delete(stage_id, mode);
     useStagesStore.getState().removeById(stage_id);
+  },
+  async getManifest(stage_id: string): Promise<Manifest> {
+    return stagesApi.getManifest(stage_id);
   },
 };

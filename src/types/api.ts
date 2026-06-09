@@ -297,6 +297,73 @@ export interface GetStagesResponse {
   stages: ApiStage[];
 }
 
+export type DeleteStageMode = "detach" | "destroy";
+
+// --- Manifest / Deploy types ------------------------------------------------
+
+export interface ManifestTool {
+  name: string;
+  description?: string | null;
+  input_schema?: Record<string, unknown> | null;
+  code?: string | null;
+  pass_context?: boolean;
+  is_async?: boolean;
+  is_client_side_tool?: boolean;
+}
+
+export interface ManifestSRE {
+  name: string;
+  description?: string | null;
+  output_schema: Record<string, unknown>;
+  is_public?: boolean;
+  prompt_template: string;
+  variable_names?: string[] | null;
+  model_id?: string | null;
+}
+
+export interface ManifestAgent {
+  name: string;
+  description: string;
+  prompt: string;
+  is_public?: boolean;
+  agent_speaks_first?: boolean;
+  tools?: string[];
+  uses_prompt_args?: boolean;
+  prompt_arg_names?: string[];
+  voice_id?: string | null;
+  initialize_tool_id?: string | null;
+  model_id?: string | null;
+}
+
+export interface Manifest {
+  $schema?: string;
+  tools?: Record<string, ManifestTool>;
+  sres?: Record<string, ManifestSRE>;
+  agents?: Record<string, ManifestAgent>;
+}
+
+export interface DeployRequest {
+  stage: string;
+  org_id?: string;
+  manifest: Manifest;
+}
+
+export interface ResourceOp {
+  kind: "parameter_definition" | "tool" | "sre" | "agent";
+  op: "create" | "update" | "delete" | "noop";
+  logical_name: string;
+  resource_id: string | null;
+  diff_summary: string | null;
+}
+
+export interface DeployResponse {
+  stage_id: string;
+  stage_name: string;
+  stage_created: boolean;
+  summary: { create: number; update: number; delete: number; noop: number };
+  operations: ResourceOp[];
+}
+
 export interface ApiStructuredResponseEndpoint {
   sre_id: string;
   org_id: string;

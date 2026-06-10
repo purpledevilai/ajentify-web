@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Wrench, Layers, Home, FileText, KeyRound, BarChart3 } from "lucide-react";
+import { Bot, Wrench, Layers, FileText, KeyRound, BarChart3 } from "lucide-react";
 import { Logo } from "@/components/primitives/logo";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +11,6 @@ const items: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { href: "/app", label: "Overview", icon: Home },
   { href: "/app/agents", label: "Agents", icon: Bot },
   { href: "/app/tools", label: "Tools", icon: Wrench },
   { href: "/app/stages", label: "Stages", icon: Layers },
@@ -45,7 +44,7 @@ export function SidebarNav({
       <nav className="flex flex-col gap-1">
         {items.map(({ href, label, icon: Icon }) => {
           const active =
-            pathname === href || (href !== "/app" && pathname.startsWith(href));
+            pathname === href || pathname.startsWith(href);
           return (
             <Link
               key={href}

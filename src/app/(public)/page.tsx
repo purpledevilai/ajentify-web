@@ -3,24 +3,14 @@ import { Button } from "@/components/primitives/button";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
 import { HeroSection } from "./_sections/HeroSection";
 import { ProofStrip } from "./_sections/ProofStrip";
-import { InteractiveBuild } from "./_sections/InteractiveBuild";
-import { StartFastSection } from "./_sections/StartFastSection";
-import { EmbeddedChatSection } from "./_sections/EmbeddedChatSection";
-import { ContextWindowSection } from "./_sections/ContextWindowSection";
-import { TestingFrameworkSection } from "./_sections/TestingFrameworkSection";
-import { VoiceSection } from "./_sections/VoiceSection";
+import { HowItComesTogether } from "./_sections/HowItComesTogether";
 
 export default function LandingPage() {
   return (
     <>
       <HeroSection />
       <ProofStrip />
-      <InteractiveBuild />
-      <StartFastSection />
-      <EmbeddedChatSection />
-      <ContextWindowSection />
-      <TestingFrameworkSection />
-      <VoiceSection />
+      <HowItComesTogether />
 
       {/* Bottom CTA */}
       <section className="border-t border-border/50">

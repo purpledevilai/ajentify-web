@@ -138,7 +138,7 @@ export function AgentDemo() {
   }, []);
 
   return (
-    <section className="showcase-stage marketing-grid relative">
+    <section className="stage-glow relative">
       <div
         ref={containerRef}
         className="lg:grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]"

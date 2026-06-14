@@ -202,27 +202,7 @@
   color: var(--foreground);
 }
 
-.dark .marketing,
-.marketing.dark {
-  --background: oklch(0.145 0.014 264); /* deep cool ink */
-  --foreground: oklch(0.97 0.005 265);
-  --card: oklch(0.185 0.016 264);
-  --card-foreground: oklch(0.97 0.005 265);
-  --popover: oklch(0.185 0.016 264);
-  --popover-foreground: oklch(0.97 0.005 265);
-  --primary: oklch(0.66 0.21 264);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.24 0.016 264);
-  --secondary-foreground: oklch(0.97 0.005 265);
-  --muted: oklch(0.24 0.016 264);
-  --muted-foreground: oklch(0.67 0.02 264);
-  --accent: oklch(0.64 0.24 290);
-  --accent-foreground: oklch(0.98 0 0);
-  --border: oklch(0.27 0.016 264);
-  --input: oklch(0.27 0.016 264);
-  --ring: oklch(0.66 0.21 264);
-  --grid-line: oklch(0.7 0.09 272 / 0.08);
-}
+/* Marketing is light-only by design — no dark override. */
 
 @layer base {
   .marketing h1,
@@ -231,29 +211,20 @@
   }
 }
 
-/* Always-dark showcase stage — the white product panel pops on it regardless
-   of the site theme. */
-.showcase-stage {
-  --background: oklch(0.145 0.014 264);
-  --foreground: oklch(0.97 0.005 265);
-  --card: oklch(0.185 0.016 264);
-  --card-foreground: oklch(0.97 0.005 265);
-  --popover: oklch(0.185 0.016 264);
-  --popover-foreground: oklch(0.97 0.005 265);
-  --primary: oklch(0.66 0.21 264);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.24 0.016 264);
-  --secondary-foreground: oklch(0.97 0.005 265);
-  --muted: oklch(0.24 0.016 264);
-  --muted-foreground: oklch(0.67 0.02 264);
-  --accent: oklch(0.64 0.24 290);
-  --accent-foreground: oklch(0.98 0 0);
-  --border: oklch(0.27 0.016 264);
-  --input: oklch(0.27 0.016 264);
-  --ring: oklch(0.66 0.21 264);
-  --grid-line: oklch(0.7 0.09 272 / 0.08);
+/* Soft light atmosphere — brand glows on a clean canvas, no pattern. */
+.stage-glow {
   background-color: var(--background);
-  color: var(--foreground);
+  background-image:
+    radial-gradient(
+      46rem 32rem at 84% -10%,
+      color-mix(in oklab, var(--primary) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      40rem 30rem at 2% 0%,
+      color-mix(in oklab, var(--accent) 8%, transparent),
+      transparent 64%
+    );
 }
 
 @layer utilities {

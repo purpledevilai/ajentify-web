@@ -24,10 +24,20 @@ export function FeatureBlock({
   return (
     <section className="border-border/50 border-t">
       <div className="container mx-auto max-w-7xl px-6 py-20 md:py-28">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] lg:gap-14">
+        <div
+          className={cn(
+            "grid items-center gap-12 xl:gap-14",
+            reverse
+              ? "xl:grid-cols-[800px_minmax(0,1fr)]"
+              : "xl:grid-cols-[minmax(0,1fr)_800px]"
+          )}
+        >
           {/* Copy */}
           <motion.div
-            className={cn(reverse && "lg:order-2")}
+            className={cn(
+              "xl:row-start-1",
+              reverse ? "xl:col-start-2" : "xl:col-start-1"
+            )}
             initial={{ opacity: 0, y: 18 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
@@ -59,10 +69,15 @@ export function FeatureBlock({
             )}
           </motion.div>
 
-          {/* Demo stage — generous, holds draggable windows */}
-          <div className={cn(reverse && "lg:order-1")}>
+          {/* Demo stage — min 800×600 so the windows stay readable */}
+          <div
+            className={cn(
+              "overflow-x-auto xl:row-start-1",
+              reverse ? "xl:col-start-1" : "xl:col-start-2"
+            )}
+          >
             <motion.div
-              className="relative aspect-[7/5] w-full"
+              className="relative h-[600px] w-full min-w-[800px]"
               initial={{ opacity: 0, scale: 0.97, y: 12 }}
               whileInView={{ opacity: 1, scale: 1, y: 0 }}
               viewport={{ once: true, margin: "-80px" }}

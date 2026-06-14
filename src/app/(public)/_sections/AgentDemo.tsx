@@ -2,8 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check } from "lucide-react";
+import {
+  ArrowUpRight,
+  BookOpen,
+  Bot,
+  Check,
+  Database,
+  GripVertical,
+  Rocket,
+  Sparkles,
+  Wrench,
+} from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/primitives/button";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
 import { StorefrontPanel } from "./StorefrontPanel";
@@ -117,13 +128,32 @@ const DOCS_BY_ID: Record<string, string> = {
   ship: "https://api.ajentify.com/docs/POST/deploy",
 };
 
+const STEP_ICONS: Record<string, typeof Bot> = {
+  agent: Bot,
+  tools: Wrench,
+  sres: Sparkles,
+  memdocs: BookOpen,
+  datawindows: Database,
+  ship: Rocket,
+};
+
 export function AgentDemo() {
   const [config, setConfig] = useState<AgentConfig>(INITIAL_CONFIG);
   const update: Update = (fn) => setConfig(fn);
   const preview = mockRuntime.derivePreview(config);
 
   const [active, setActive] = useState("agent");
+  const [canDrag, setCanDrag] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Only enable dragging the window on desktop, so it never hijacks mobile scroll.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px) and (pointer: fine)");
+    const update = () => setCanDrag(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     const root = containerRef.current;
@@ -216,53 +246,87 @@ export function AgentDemo() {
           <div className="lg:sticky lg:top-24">
             {/* Never taller than it is wide; also capped to the viewport. */}
             <motion.div
-              className="mx-auto aspect-[3/4] w-full max-h-[620px] sm:aspect-square sm:max-h-[560px] lg:max-h-[calc(100vh-8rem)]"
-              initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              drag={canDrag}
+              dragMomentum={false}
+              dragElastic={0.16}
+              dragConstraints={{ top: -60, bottom: 220, left: -160, right: 160 }}
+              whileDrag={{ scale: 1.015, cursor: "grabbing" }}
+              initial={{ opacity: 0, scale: reduce ? 1 : 0.985 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+              className={cn(
+                "mx-auto aspect-[3/4] w-full max-h-[640px] sm:aspect-[16/10] sm:max-h-none lg:max-h-[calc(100vh-9rem)]",
+                canDrag && "cursor-grab active:cursor-grabbing"
+              )}
             >
               <StorefrontPanel config={config} preview={preview} active={active} />
             </motion.div>
+            {canDrag && (
+              <p className="fig-label text-muted-foreground/60 mt-3 hidden items-center justify-center gap-1.5 lg:flex">
+                <GripVertical className="size-3" />
+                drag the window
+              </p>
+            )}
           </div>
         </div>
 
         {/* Config — left, scrolls; drives the panel spotlight */}
         <div className="lg:col-start-1 lg:row-start-2">
-          <div className="divide-border/60 mx-auto w-full max-w-2xl divide-y px-6 pb-28 lg:px-12">
-            {CARDS.map((card) => (
-              <motion.div
-                key={card.n}
-                data-section={card.id}
-                className="scroll-mt-24 py-16 first:pt-20"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, margin: "-100px" }}
-                variants={item}
-              >
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="fig-label text-muted-foreground flex items-center gap-2">
-                    <span className="bg-primary inline-block size-2" />
-                    <span className="text-primary">{card.n}</span>
-                    <span className="text-border">/</span>
-                    <span className="text-foreground">{card.label}</span>
-                  </div>
-                  <a
-                    href={DOCS_BY_ID[card.id]}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="fig-label text-muted-foreground hover:text-primary inline-flex items-center gap-1 transition-colors"
+          <div className="mx-auto w-full max-w-2xl px-6 pb-28 lg:px-12">
+            {CARDS.map((card) => {
+              const Icon = STEP_ICONS[card.id];
+              const isActive = active === card.id;
+              const isLast = card.id === "ship";
+              return (
+                <motion.div
+                  key={card.n}
+                  data-section={card.id}
+                  className="relative scroll-mt-24 pb-16 pl-[4.25rem] first:pt-12"
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true, margin: "-100px" }}
+                  variants={item}
+                >
+                  {/* timeline connector */}
+                  {!isLast && (
+                    <span className="bg-border absolute bottom-2 left-[1.4rem] top-14 w-px" />
+                  )}
+                  {/* node */}
+                  <span
+                    className={cn(
+                      "absolute left-0 top-1 flex size-11 items-center justify-center rounded-xl border transition-all duration-300",
+                      isActive
+                        ? "border-primary bg-primary text-primary-foreground shadow-primary/30 scale-105 shadow-md"
+                        : "border-border bg-card text-muted-foreground"
+                    )}
                   >
-                    Docs
-                    <ArrowUpRight className="size-3" />
-                  </a>
-                </div>
-                <h3 className="font-display text-2xl font-bold tracking-tight">
-                  {card.title}
-                </h3>
-                <p className="text-muted-foreground mb-6 mt-2">{card.body}</p>
-                {card.render(config, update)}
-              </motion.div>
-            ))}
+                    <Icon className="size-5" />
+                  </span>
+
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <span className="fig-label text-muted-foreground">
+                      Step {card.n} · {card.label}
+                    </span>
+                    <a
+                      href={DOCS_BY_ID[card.id]}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="fig-label text-muted-foreground hover:text-primary inline-flex items-center gap-1 transition-colors"
+                    >
+                      Docs
+                      <ArrowUpRight className="size-3" />
+                    </a>
+                  </div>
+                  <h3 className="font-display text-[1.65rem] font-bold leading-tight tracking-tight">
+                    {card.title}
+                  </h3>
+                  <p className="text-muted-foreground mb-6 mt-2 leading-relaxed">
+                    {card.body}
+                  </p>
+                  {card.render(config, update)}
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>

@@ -13,11 +13,31 @@ export const MODELS: ModelMeta[] = [
   { id: "gemini", label: "Gemini", vendor: "Google" },
 ];
 
-/**
- * The agent the showcase opens with: an in-app assistant for a fictional
- * storefront. Chosen because every primitive has an obvious job — which makes
- * editing any one of them visibly change the agent's answer.
- */
+export function prettyJson(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+const NAVIGATE_CODE = `// Runs in the browser. Drives your UI, then posts the
+// result back to Ajentify for the agent to use.
+ajentify.clientTool("navigate", async ({ path }) => {
+  router.push(path);            // your app's router
+  return { ok: true, path };    // -> sent back to the agent
+});`;
+
+const GET_ORDERS_CODE = `@tool
+def get_orders(context, customer_id: str) -> dict:
+    orders = db.orders.where(customer_id=customer_id)
+    return {"orders": [o.summary() for o in orders]}`;
+
+const CREATE_ORDER_CODE = `@tool
+def create_order(context, sku: str, qty: int) -> dict:
+    order = db.orders.create(sku=sku, qty=qty)
+    return {"order_id": order.id, "status": "confirmed"}`;
+
 export const INITIAL_CONFIG: AgentConfig = {
   name: "Storefront Assistant",
   model: "claude",
@@ -30,8 +50,7 @@ Voice: warm, concise, never pushy.
 - Use store_policies for returns, shipping and warranty.
 - Offer to take the customer straight to what they need.
 
-Never invent stock numbers or policies. If you can't see the
-data, say so.`,
+Never invent stock numbers or policies.`,
   tools: [
     {
       id: "t_nav",
@@ -39,6 +58,8 @@ data, say so.`,
       description: "Open any page in the app for the customer",
       clientSide: true,
       enabled: true,
+      language: "javascript",
+      code: NAVIGATE_CODE,
     },
     {
       id: "t_orders",
@@ -46,6 +67,8 @@ data, say so.`,
       description: "Look up the customer's order history",
       clientSide: false,
       enabled: true,
+      language: "python",
+      code: GET_ORDERS_CODE,
     },
     {
       id: "t_create",
@@ -53,6 +76,8 @@ data, say so.`,
       description: "Place an order on the customer's behalf",
       clientSide: false,
       enabled: false,
+      language: "python",
+      code: CREATE_ORDER_CODE,
     },
   ],
   sres: [
@@ -72,23 +97,23 @@ data, say so.`,
     {
       id: "m_pol",
       name: "store_policies",
-      facts: [
-        "Returns accepted within 30 days of purchase.",
-        "Free shipping on orders over $50.",
-      ],
       enabled: true,
+      data: {
+        returns: "Returns accepted within 30 days of purchase.",
+        shipping: "Free shipping on orders over $50.",
+      },
     },
   ],
   dataWindows: [
     {
       id: "d_inv",
       name: "live_inventory",
-      description: "Synced from your store every 60s",
-      rows: [
-        { key: "Aurora Lamp", value: "8" },
-        { key: "Nimbus Chair", value: "3" },
-      ],
+      description: "Synced from your store, updated as orders come in",
       enabled: true,
+      data: {
+        "Aurora Lamp": { stock: 8, price: 149 },
+        "Nimbus Chair": { stock: 3, price: 399 },
+      },
     },
   ],
 };
@@ -96,14 +121,6 @@ data, say so.`,
 const DEMO_QUESTION =
   "How many Aurora Lamps are left, and can I still return one I bought a few weeks ago?";
 
-/**
- * mockRuntime — derives a preview transcript purely from the current config,
- * with no network. Every branch below is wired to a primitive so toggling or
- * editing that primitive changes what the agent says.
- *
- * Swap this for a live implementation (same `AgentRuntime` interface) to make
- * the preview a real agent. See ./types.ts.
- */
 export const mockRuntime: AgentRuntime = {
   derivePreview(config: AgentConfig): PreviewModel {
     const steps: PreviewStep[] = [];
@@ -112,8 +129,10 @@ export const mockRuntime: AgentRuntime = {
     if (sre) {
       steps.push({
         kind: "sre",
-        label: `${sre.name}()`,
-        detail: `→ { product: "Aurora Lamp", intent: "stock_and_returns" }`,
+        name: sre.name,
+        meta: "SRE",
+        input: prettyJson({ message: DEMO_QUESTION }),
+        output: prettyJson({ product: "Aurora Lamp", intent: "stock_and_returns" }),
       });
     }
 
@@ -121,27 +140,29 @@ export const mockRuntime: AgentRuntime = {
     if (navTool) {
       steps.push({
         kind: "tool",
-        label: `${navTool.name}()`,
-        detail: "client-side · drives your UI",
+        name: navTool.name,
+        meta: "client-side",
+        input: prettyJson({ path: "/products/aurora-lamp" }),
+        output: prettyJson({ ok: true, path: "/products/aurora-lamp" }),
       });
     }
 
     const inventory = config.dataWindows.find((d) => d.enabled);
-    const stockRow =
-      inventory?.rows.find((r) => r.key.toLowerCase().includes("aurora")) ??
-      inventory?.rows[0];
+    const aurora = inventory ? asRecord(inventory.data["Aurora Lamp"]) : {};
+    const stock =
+      typeof aurora.stock === "number" ? aurora.stock : undefined;
 
     const policyDoc = config.memDocs.find((m) => m.enabled);
     const returnFact =
-      policyDoc?.facts.find((f) => /return/i.test(f)) ?? policyDoc?.facts[0];
+      policyDoc && typeof policyDoc.data.returns === "string"
+        ? policyDoc.data.returns
+        : undefined;
 
     const answer: AnswerSegment[] = [];
 
-    if (inventory && stockRow) {
+    if (stock !== undefined) {
       answer.push({
-        text: `We've got ${stockRow.value} ${stockRow.key}${
-          stockRow.value === "1" ? "" : "s"
-        } in stock right now.`,
+        text: `We've got ${stock} Aurora Lamp${stock === 1 ? "" : "s"} in stock right now.`,
         source: "data",
       });
     } else {
@@ -151,7 +172,7 @@ export const mockRuntime: AgentRuntime = {
       });
     }
 
-    if (policyDoc && returnFact) {
+    if (returnFact) {
       answer.push({ text: ` On returns — ${returnFact}`, source: "memory" });
     } else {
       answer.push({
@@ -161,52 +182,44 @@ export const mockRuntime: AgentRuntime = {
     }
 
     if (navTool) {
-      answer.push({
-        text: " Want me to open that product for you?",
-      });
+      answer.push({ text: " Want me to open that product for you?" });
     }
 
     return {
       model: config.model,
       personaLabel: config.persona.trim() || "default",
-      greeting: `${config.name} here — ${
-        config.persona.trim() || "ready to help"
-      }.`,
+      greeting: `${config.name} here — ${config.persona.trim() || "ready to help"}.`,
       userMessage: DEMO_QUESTION,
       steps,
       answer,
       toolsAvailable: config.tools.filter((t) => t.enabled).map((t) => t.name),
       knowledge: config.memDocs.filter((m) => m.enabled).map((m) => m.name),
       liveData: inventory
-        ? { name: inventory.name, rows: inventory.rows }
+        ? { name: inventory.name, json: prettyJson(inventory.data) }
         : null,
     };
   },
 };
 
-/** Builds the declarative manifest shown in the "Deploy" tab from live config. */
+/** Builds the declarative manifest shown in the Deploy view from live config. */
 export function buildManifest(config: AgentConfig): string {
+  const tools = config.tools.filter((t) => t.enabled).map((t) => `"${t.name}"`);
   const toolEntries = config.tools
     .filter((t) => t.enabled)
     .map(
       (t) =>
-        `    "${t.name}": { "client_side": ${t.clientSide}, "description": "${t.description}" }`
+        `    "${t.name}": { "client_side": ${t.clientSide}, "lang": "${t.language}" }`
     )
     .join(",\n");
-
   const sreEntries = config.sres
     .filter((s) => s.enabled)
     .map(
       (s) =>
         `    "${s.name}": { "variables": [${s.variables
           .map((v) => `"${v}"`)
-          .join(", ")}], "output_schema": { ${s.outputFields
-          .map((f) => `"${f.name}": "${f.type}"`)
-          .join(", ")} } }`
+          .join(", ")}] }`
     )
     .join(",\n");
-
-  const tools = config.tools.filter((t) => t.enabled).map((t) => `"${t.name}"`);
 
   return `{
   "stage": "dev",

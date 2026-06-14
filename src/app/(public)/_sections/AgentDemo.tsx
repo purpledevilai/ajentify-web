@@ -47,7 +47,7 @@ const CARDS: CardDef[] = [
     n: "02",
     label: "Tools",
     title: "Give it tools that drive your app",
-    body: "Just functions — server-side, or client-side to navigate routes, read page data and fill forms. Toggle one into the toolbelt.",
+    body: "Tools are just functions. Server-side tools run Python; client-side tools run JavaScript in the browser and post the result back to Ajentify for the agent to use.",
     render: (config, update) => <ToolsEditor config={config} update={update} />,
   },
   {
@@ -60,15 +60,15 @@ const CARDS: CardDef[] = [
   {
     n: "04",
     label: "Mem-docs",
-    title: "Hand it knowledge",
-    body: "Documents the agent reads as context. Edit a fact — the answer on the right changes with it.",
+    title: "Hand it knowledge as JSON",
+    body: "A JSON document the agent reads as context. Edit a field — the answer on the right changes with it.",
     render: (config, update) => <MemDocEditor config={config} update={update} />,
   },
   {
     n: "05",
     label: "Data Windows",
     title: "Stream in live data",
-    body: "Cached, always-current data injected straight into the context. Change a value — the answer updates instantly.",
+    body: "A live JSON document injected into the context. Sell an Aurora Lamp and the window updates — the agent reads the new stock instantly, because it's the same live data your app writes.",
     render: (config, update) => (
       <DataWindowEditor config={config} update={update} />
     ),
@@ -107,86 +107,89 @@ export function AgentDemo() {
 
   return (
     <section className="marketing-grid border-border/60 relative border-b">
-      <div className="container mx-auto max-w-6xl px-6 pb-20 md:pb-28">
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] lg:gap-x-10">
-          {/* Hero — blends straight into the cards below */}
-          <div className="pb-8 pt-16 md:pt-24 lg:col-start-1 lg:row-start-1">
-            <div className="fig-label text-muted-foreground mb-5 flex items-center gap-2">
-              <span className="bg-primary inline-block size-2" />
-              Fully-hosted agent infrastructure
-            </div>
-            <h1 className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl">
-              Build AI agents,
-              <br />
-              <span className="text-gradient-brand">not infrastructure.</span>
-            </h1>
-            <p className="text-muted-foreground mt-5 max-w-md text-lg">
-              Prototype in an afternoon. Scale to production — on the same
-              platform.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <CopyPromptDialog
-                label="Copy starter prompt"
-                size="md"
-                className="rounded-full"
-              />
-              <Button
-                asChild
-                variant="outline"
-                size="md"
-                className="rounded-full"
-              >
-                <Link href="/sign-up">Start building — free</Link>
-              </Button>
-            </div>
-          </div>
-
-          {/* Fixed output — pinned beside the hero and every card */}
-          <div className="pt-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:pt-24">
-            <div className="lg:sticky lg:top-24">
-              <div className="draft-ticks h-[440px] lg:h-[calc(100vh-7rem)]">
-                <AgentPreview preview={preview} />
+      <div className="lg:flex lg:items-stretch">
+        {/* Main column — hero blends straight into the cards */}
+        <div className="min-w-0 flex-1">
+          <div className="mx-auto max-w-3xl px-6 pb-20 md:pb-28">
+            {/* Hero */}
+            <div className="pb-8 pt-16 md:pt-24">
+              <div className="fig-label text-muted-foreground mb-5 flex items-center gap-2">
+                <span className="bg-primary inline-block size-2" />
+                Fully-hosted agent infrastructure
               </div>
-              <p className="fig-label text-muted-foreground mt-3 text-center">
-                Live output · updates as you edit
+              <h1 className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl">
+                Build AI agents,
+                <br />
+                <span className="text-gradient-brand">not infrastructure.</span>
+              </h1>
+              <p className="text-muted-foreground mt-5 max-w-md text-lg">
+                Prototype in an afternoon. Scale to production — on the same
+                platform.
               </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <CopyPromptDialog
+                  label="Copy starter prompt"
+                  size="md"
+                  className="rounded-full"
+                />
+                <Button
+                  asChild
+                  variant="outline"
+                  size="md"
+                  className="rounded-full"
+                >
+                  <Link href="/sign-up">Start building — free</Link>
+                </Button>
+              </div>
             </div>
-          </div>
 
-          {/* Stacking control cards */}
-          <div className="relative lg:col-start-1 lg:row-start-2">
-            {CARDS.map((card, i) => (
-              <div
-                key={card.n}
-                className="mb-5 lg:sticky"
-                style={{ top: `calc(5.5rem + ${i * 1.35}rem)` }}
-              >
-                <div className="bg-card border-border/70 overflow-hidden rounded-xl border shadow-[0_-2px_30px_-14px_rgba(0,0,0,0.4)]">
-                  <div className="border-border/60 bg-card flex items-center justify-between border-b px-5 py-2.5">
-                    <div className="fig-label flex items-center gap-2">
-                      <span className="bg-primary inline-block size-2" />
-                      <span className="text-primary">{card.n}</span>
-                      <span className="text-border">/</span>
-                      <span className="text-foreground">{card.label}</span>
+            {/* Agent output on mobile (inline) */}
+            <div className="mb-10 h-[460px] lg:hidden">
+              <AgentPreview preview={preview} />
+            </div>
+
+            {/* Stacking control cards */}
+            <div className="relative">
+              {CARDS.map((card, i) => (
+                <div
+                  key={card.n}
+                  className="mb-5 lg:sticky"
+                  style={{ top: `calc(5.5rem + ${i * 1.35}rem)` }}
+                >
+                  <div className="bg-card border-border/70 overflow-hidden rounded-xl border shadow-[0_-2px_30px_-14px_rgba(0,0,0,0.4)]">
+                    <div className="border-border/60 bg-card flex items-center justify-between border-b px-5 py-2.5">
+                      <div className="fig-label flex items-center gap-2">
+                        <span className="bg-primary inline-block size-2" />
+                        <span className="text-primary">{card.n}</span>
+                        <span className="text-border">/</span>
+                        <span className="text-foreground">{card.label}</span>
+                      </div>
+                      <span className="fig-label text-muted-foreground">
+                        {card.n} / 06
+                      </span>
                     </div>
-                    <span className="fig-label text-muted-foreground">
-                      {card.n} / 06
-                    </span>
-                  </div>
-                  <div className="p-5 md:p-6">
-                    <h3 className="font-display text-xl font-bold tracking-tight">
-                      {card.title}
-                    </h3>
-                    <p className="text-muted-foreground mb-5 mt-2 text-sm">
-                      {card.body}
-                    </p>
-                    {card.render(config, update)}
+                    <div className="p-5 md:p-6">
+                      <h3 className="font-display text-xl font-bold tracking-tight">
+                        {card.title}
+                      </h3>
+                      <p className="text-muted-foreground mb-5 mt-2 text-sm">
+                        {card.body}
+                      </p>
+                      {card.render(config, update)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* Agent output — full-height rail pinned to the right edge of the screen */}
+        <aside className="border-border/60 hidden w-[clamp(380px,30vw,460px)] shrink-0 border-l lg:block">
+          <div className="sticky top-16 h-[calc(100vh-4rem)] p-3">
+            <AgentPreview preview={preview} />
+          </div>
+        </aside>
       </div>
     </section>
   );

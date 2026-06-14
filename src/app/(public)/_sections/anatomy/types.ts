@@ -1,16 +1,10 @@
 /**
- * Types for the interactive "Anatomy of an Agent" showcase.
+ * Types for the interactive agent demo.
  *
- * The showcase lets a visitor edit a live agent's configuration (system prompt,
- * tools, SREs, mem-docs, Data Windows) and watch a preview react in real time.
- *
- * IMPORTANT — integration seam for the live agent:
- * The preview is produced by an `AgentRuntime`. Today we ship `mockRuntime`
- * (see ./demo-runtime.ts), which derives a scripted-but-config-driven preview
- * with zero backend. To make the preview a *real* agent, implement
- * `AgentRuntime` on top of `@ajentify/chat` (create a context from `AgentConfig`,
- * send the demo turn, stream tool calls + the answer back) and pass it to
- * <AnatomySection runtime={...} />. No other component needs to change.
+ * Integration seam: the preview is produced by an `AgentRuntime`. We ship
+ * `mockRuntime` (see ./demo-runtime.ts) which derives a config-driven preview
+ * with no backend. Implement `AgentRuntime` on top of `@ajentify/chat` to make
+ * the preview a real agent — nothing else changes.
  */
 
 export type ModelId = "claude" | "gpt" | "gemini";
@@ -28,6 +22,9 @@ export interface ToolConfig {
   /** Client-side tools run in the browser and can drive your app's UI. */
   clientSide: boolean;
   enabled: boolean;
+  language: "python" | "javascript";
+  /** The actual code that runs when the agent calls this tool. */
+  code: string;
 }
 
 export interface SREField {
@@ -45,33 +42,26 @@ export interface SREConfig {
   enabled: boolean;
 }
 
-/** Memory document — JSON knowledge the agent reads. */
+/** Memory document — a JSON document the agent reads as knowledge. */
 export interface MemDocConfig {
   id: string;
   name: string;
-  facts: string[];
   enabled: boolean;
+  data: Record<string, unknown>;
 }
 
-/** A single editable key/value row inside a Data Window. */
-export interface DataRow {
-  key: string;
-  value: string;
-}
-
-/** Data Window — real-time cached data injected into the context. */
+/** Data Window — a live JSON document injected into the context. */
 export interface DataWindowConfig {
   id: string;
   name: string;
   description: string;
-  rows: DataRow[];
   enabled: boolean;
+  data: Record<string, unknown>;
 }
 
 export interface AgentConfig {
   name: string;
   model: ModelId;
-  /** Short persona label surfaced in the preview header. */
   persona: string;
   systemPrompt: string;
   tools: ToolConfig[];
@@ -80,27 +70,16 @@ export interface AgentConfig {
   dataWindows: DataWindowConfig[];
 }
 
-export type PrimitiveKey =
-  | "agent"
-  | "prompt"
-  | "tools"
-  | "sres"
-  | "memdocs"
-  | "datawindows"
-  | "deploy";
-
-/** A step the agent takes mid-turn (tool/SRE call), rendered as an animated chip. */
+/** A tool/SRE call the agent makes mid-turn, shown as an expandable trace. */
 export interface PreviewStep {
   kind: "tool" | "sre";
-  label: string;
-  detail: string;
+  name: string;
+  meta: string;
+  /** JSON-stringified call input and result. */
+  input: string;
+  output: string;
 }
 
-/**
- * A segment of the agent's answer. `source` ties the value back to the config
- * primitive that produced it, so the preview can flash-highlight the exact
- * words that change when you edit that primitive.
- */
 export interface AnswerSegment {
   text: string;
   source?: "data" | "memory" | "persona";
@@ -115,13 +94,10 @@ export interface PreviewModel {
   answer: AnswerSegment[];
   toolsAvailable: string[];
   knowledge: string[];
-  liveData: { name: string; rows: DataRow[] } | null;
+  /** The Data Window the agent is reading, as pretty JSON. */
+  liveData: { name: string; json: string } | null;
 }
 
-/**
- * The swappable runtime. `mockRuntime` implements this with no backend;
- * a live implementation would call `@ajentify/chat` under the hood.
- */
 export interface AgentRuntime {
   derivePreview(config: AgentConfig): PreviewModel;
 }

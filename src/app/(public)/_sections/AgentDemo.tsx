@@ -154,7 +154,7 @@ export function AgentDemo() {
       >
         {/* Hero — top-left */}
         <div className="lg:col-start-1 lg:row-start-1">
-          <div className="mx-auto w-full max-w-2xl px-6 pb-6 pt-16 md:pt-24 lg:px-12">
+          <div className="mx-auto w-full max-w-2xl px-6 pb-10 pt-20 md:pt-28 lg:px-12">
             <div className="fig-label text-muted-foreground mb-5 flex items-center gap-2">
               <span className="bg-primary inline-block size-2" />
               Fully-hosted agent infrastructure
@@ -182,7 +182,7 @@ export function AgentDemo() {
         </div>
 
         {/* Floating white storefront — top-aligned with the first step, then sticky */}
-        <div className="px-6 pb-10 lg:col-start-2 lg:row-start-2 lg:pl-0 lg:pr-12 lg:pt-12">
+        <div className="px-6 pb-10 lg:col-start-2 lg:row-start-2 lg:pl-0 lg:pr-12 lg:pt-20">
           <div className="lg:sticky lg:top-24">
             {/* Never taller than it is wide; also capped to the viewport. */}
             <div className="mx-auto aspect-square max-h-[560px] w-full lg:max-h-[calc(100vh-8rem)]">
@@ -198,7 +198,7 @@ export function AgentDemo() {
               <div
                 key={card.n}
                 data-section={card.id}
-                className="scroll-mt-24 py-16 first:pt-12"
+                className="scroll-mt-24 py-16 first:pt-20"
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="fig-label text-muted-foreground flex items-center gap-2">

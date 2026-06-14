@@ -39,7 +39,8 @@ export function VoiceSection() {
             tests — can power a WebRTC voice experience. Ajentify&apos;s voice system
             handles speech-to-text, LLM invocation, and text-to-speech with an
             ElevenLabs voice of your choice. Deploy it anywhere you can put a
-            WebRTC client.
+            WebRTC client. No second agent to build — the chat agent you
+            already wrote just starts speaking.
           </p>
         </div>
 

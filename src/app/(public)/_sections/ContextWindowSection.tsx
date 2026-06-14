@@ -51,21 +51,21 @@ export function ContextWindowSection() {
     <section className="bg-muted/40 border-t border-border/50">
       <div className="container mx-auto max-w-5xl px-6 py-20 md:py-28">
         <div className="text-primary mb-3 text-sm font-semibold uppercase tracking-wider">
-          Full API Control
+          Room to grow
         </div>
         <div className="grid items-start gap-12 md:grid-cols-2">
           <CodeBlock code={CODE} filename="context.py" />
 
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-              Own every message in the context window
+              The whole context window is yours — when you&apos;re ready for it
             </h2>
             <p className="text-muted-foreground mt-4 text-lg">
-              For deeply integrated agentic pipelines, the Ajentify API gives
-              you fine-grained control over the conversation. Generate messages,
-              edit or remove previous messages, inject system prompts
-              mid-conversation, and use Data Windows to surface live data the
-              moment it&apos;s available.
+              Start with the defaults; reach for the internals only when your
+              agent gets ambitious. Generate, edit, or remove any message,
+              inject system prompts mid-conversation, and stream live data in
+              with Data Windows. This is the headroom that means you never have
+              to migrate off Ajentify.
             </p>
           </div>
         </div>

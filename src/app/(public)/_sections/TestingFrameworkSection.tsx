@@ -43,6 +43,11 @@ export function TestingFrameworkSection() {
               simulated conversations, deterministic assertions, and LLM-powered
               assessments. Catch regressions before they reach production.
             </p>
+            <p className="text-muted-foreground mt-3 text-[0.95rem]">
+              And because your tests run on the same platform as your agent,
+              they assert against the very same context window — no separate
+              trace pipeline, no glue code.
+            </p>
             <ul className="text-muted-foreground mt-6 space-y-3 text-[0.95rem]">
               <li className="flex gap-3">
                 <span className="text-primary mt-1 shrink-0">&#x2713;</span>

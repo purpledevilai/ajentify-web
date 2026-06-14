@@ -37,14 +37,15 @@ export function EmbeddedChatSection() {
         <div className="grid items-start gap-12 md:grid-cols-2">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
-              Embed an AI agent directly in your app
+              An agent that actually drives your app
             </h2>
             <p className="text-muted-foreground mt-4 text-lg">
-              The <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono">@ajentify/chat</code> SDK
-              gives you the shortest path from agent creation to a working
-              in-app assistant. Your agent can navigate routes, read page data,
-              fill forms, and control UI state — through client-side tools you
-              define in plain TypeScript.
+              <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono">@ajentify/chat</code>{" "}
+              drops an AI assistant into your product that can navigate routes,
+              read live page data, fill forms, and control UI state — through
+              client-side tools you write in plain TypeScript. Not a chatbot in
+              a corner. A copilot that operates your app like your best user
+              would.
             </p>
             <ul className="text-muted-foreground mt-6 space-y-3 text-[0.95rem]">
               <li className="flex gap-3">

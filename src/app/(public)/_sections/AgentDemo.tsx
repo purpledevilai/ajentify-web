@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { Button } from "@/components/primitives/button";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
 import { StorefrontPanel } from "./StorefrontPanel";
@@ -107,6 +107,15 @@ const CARDS: CardDef[] = [
   },
 ];
 
+const DOCS_BY_ID: Record<string, string> = {
+  agent: "https://api.ajentify.com/docs/POST/agent",
+  tools: "https://api.ajentify.com/docs/POST/tool",
+  sres: "https://api.ajentify.com/docs/POST/sre",
+  memdocs: "https://api.ajentify.com/docs/web-chat-quickstart",
+  datawindows: "https://api.ajentify.com/docs",
+  ship: "https://api.ajentify.com/docs/POST/deploy",
+};
+
 export function AgentDemo() {
   const [config, setConfig] = useState<AgentConfig>(INITIAL_CONFIG);
   const update: Update = (fn) => setConfig(fn);
@@ -174,8 +183,9 @@ export function AgentDemo() {
 
         {/* Floating white storefront — pinned right */}
         <div className="px-6 pb-10 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:py-8 lg:pl-0 lg:pr-12">
-          <div className="lg:sticky lg:top-20">
-            <div className="h-[540px] lg:h-[calc(100vh-7rem)]">
+          <div className="lg:sticky lg:top-24">
+            {/* Never taller than it is wide; also capped to the viewport. */}
+            <div className="mx-auto aspect-square max-h-[560px] w-full lg:max-h-[calc(100vh-8rem)]">
               <StorefrontPanel config={config} preview={preview} active={active} />
             </div>
           </div>
@@ -183,18 +193,29 @@ export function AgentDemo() {
 
         {/* Config — left, scrolls; drives the panel spotlight */}
         <div className="lg:col-start-1 lg:row-start-2">
-          <div className="divide-border/60 mx-auto w-full max-w-2xl divide-y px-6 pb-24 lg:px-12">
+          <div className="divide-border/60 mx-auto w-full max-w-2xl divide-y px-6 pb-28 lg:px-12">
             {CARDS.map((card) => (
               <div
                 key={card.n}
                 data-section={card.id}
-                className="scroll-mt-24 py-10"
+                className="scroll-mt-24 py-16 first:pt-10"
               >
-                <div className="fig-label text-muted-foreground mb-3 flex items-center gap-2">
-                  <span className="bg-primary inline-block size-2" />
-                  <span className="text-primary">{card.n}</span>
-                  <span className="text-border">/</span>
-                  <span className="text-foreground">{card.label}</span>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="fig-label text-muted-foreground flex items-center gap-2">
+                    <span className="bg-primary inline-block size-2" />
+                    <span className="text-primary">{card.n}</span>
+                    <span className="text-border">/</span>
+                    <span className="text-foreground">{card.label}</span>
+                  </div>
+                  <a
+                    href={DOCS_BY_ID[card.id]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="fig-label text-muted-foreground hover:text-primary inline-flex items-center gap-1 transition-colors"
+                  >
+                    Docs
+                    <ArrowUpRight className="size-3" />
+                  </a>
                 </div>
                 <h3 className="font-display text-2xl font-bold tracking-tight">
                   {card.title}

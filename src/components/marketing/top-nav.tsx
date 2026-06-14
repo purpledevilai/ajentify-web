@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/primitives/logo";
+import { ThemeToggle } from "@/components/primitives/theme-toggle";
 import { Button } from "@/components/primitives/button";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -30,6 +31,7 @@ export function TopNav() {
         </div>
 
         <div className="flex items-center gap-1.5">
+          <ThemeToggle />
           <Button asChild variant="ghost" size="sm">
             <Link href="/login">Sign in</Link>
           </Button>

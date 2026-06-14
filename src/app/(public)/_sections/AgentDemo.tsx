@@ -8,9 +8,7 @@ import {
   Bot,
   Check,
   Database,
-  GripVertical,
   Rocket,
-  Sparkles,
   Wrench,
 } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
@@ -22,7 +20,6 @@ import {
   AgentEditor,
   PromptEditor,
   ToolsEditor,
-  SREEditor,
   MemDocEditor,
   DataWindowEditor,
   DeployView,
@@ -66,16 +63,8 @@ const CARDS: CardDef[] = [
     render: (config, update) => <ToolsEditor config={config} update={update} />,
   },
   {
-    id: "sres",
-    n: "03",
-    label: "SREs",
-    title: "Typed LLM calls you reuse",
-    body: "A prompt, its variables and a JSON output schema, defined once. Judges, extractors, classifiers — callable like a function.",
-    render: (config, update) => <SREEditor config={config} update={update} />,
-  },
-  {
     id: "memdocs",
-    n: "04",
+    n: "03",
     label: "Mem-docs",
     title: "Hand it knowledge as JSON",
     body: "A JSON document the agent reads as context. Edit a field — the answer in the chat changes with it.",
@@ -83,7 +72,7 @@ const CARDS: CardDef[] = [
   },
   {
     id: "datawindows",
-    n: "05",
+    n: "04",
     label: "Data Windows",
     title: "Stream in live data",
     body: "A live JSON document injected into the context. Sell an Aurora Lamp and the product page's stock — and the agent's answer — update together.",
@@ -93,7 +82,7 @@ const CARDS: CardDef[] = [
   },
   {
     id: "ship",
-    n: "06",
+    n: "05",
     label: "Ship it",
     title: "Test it, voice it, deploy it",
     body: "One agent definition, one place to run it.",
@@ -122,7 +111,6 @@ const CARDS: CardDef[] = [
 const DOCS_BY_ID: Record<string, string> = {
   agent: "https://api.ajentify.com/docs/POST/agent",
   tools: "https://api.ajentify.com/docs/POST/tool",
-  sres: "https://api.ajentify.com/docs/POST/sre",
   memdocs: "https://api.ajentify.com/docs/web-chat-quickstart",
   datawindows: "https://api.ajentify.com/docs",
   ship: "https://api.ajentify.com/docs/POST/deploy",
@@ -131,7 +119,6 @@ const DOCS_BY_ID: Record<string, string> = {
 const STEP_ICONS: Record<string, typeof Bot> = {
   agent: Bot,
   tools: Wrench,
-  sres: Sparkles,
   memdocs: BookOpen,
   datawindows: Database,
   ship: Rocket,
@@ -143,17 +130,7 @@ export function AgentDemo() {
   const preview = mockRuntime.derivePreview(config);
 
   const [active, setActive] = useState("agent");
-  const [canDrag, setCanDrag] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Only enable dragging the window on desktop, so it never hijacks mobile scroll.
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px) and (pointer: fine)");
-    const update = () => setCanDrag(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
 
   useEffect(() => {
     const root = containerRef.current;
@@ -246,27 +223,13 @@ export function AgentDemo() {
           <div className="lg:sticky lg:top-24">
             {/* Never taller than it is wide; also capped to the viewport. */}
             <motion.div
-              drag={canDrag}
-              dragMomentum={false}
-              dragElastic={0.16}
-              dragConstraints={{ top: -60, bottom: 220, left: -160, right: 160 }}
-              whileDrag={{ scale: 1.015, cursor: "grabbing" }}
-              initial={{ opacity: 0, scale: reduce ? 1 : 0.985 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
-              className={cn(
-                "mx-auto aspect-[3/4] w-full max-h-[640px] sm:aspect-[16/10] sm:max-h-none lg:max-h-[calc(100vh-9rem)]",
-                canDrag && "cursor-grab active:cursor-grabbing"
-              )}
+              className="mx-auto aspect-[3/4] w-full max-h-[640px] sm:aspect-[16/10] sm:max-h-none lg:max-h-[calc(100vh-9rem)]"
             >
               <StorefrontPanel config={config} preview={preview} active={active} />
             </motion.div>
-            {canDrag && (
-              <p className="fig-label text-muted-foreground/60 mt-3 hidden items-center justify-center gap-1.5 lg:flex">
-                <GripVertical className="size-3" />
-                drag the window
-              </p>
-            )}
           </div>
         </div>
 

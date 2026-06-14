@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Radio, ShoppingCart, Terminal } from "lucide-react";
+import { Boxes, Radio, ShoppingCart, Terminal } from "lucide-react";
 import { CodeBlock } from "@/components/marketing/code-block";
+import { CodeEditor } from "@/components/primitives/code-editor";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,8 @@ type Update = (fn: (c: AgentConfig) => AgentConfig) => void;
 type EditorProps = { config: AgentConfig; update: Update };
 
 /**
- * Editable JSON field. Keeps local text while typing; commits the parsed
+ * Editable JSON field rendered with the CodeMirror code editor (syntax
+ * highlighting, theme-aware). Keeps local text while typing; commits the parsed
  * object on valid JSON, and re-syncs when the value changes externally
  * (e.g. a simulated sale mutating a Data Window).
  */
@@ -42,11 +44,12 @@ function JsonEditor({
 
   return (
     <div className="relative">
-      <Textarea
+      <CodeEditor
         value={text}
-        spellCheck={false}
-        onChange={(e) => {
-          const next = e.target.value;
+        language="json"
+        minHeight="7rem"
+        maxHeight="18rem"
+        onChange={(next) => {
           setText(next);
           try {
             const parsed = JSON.parse(next);
@@ -56,13 +59,10 @@ function JsonEditor({
             setValid(false);
           }
         }}
-        className={cn(
-          "h-auto min-h-[132px] resize-none font-mono text-[0.78rem] leading-relaxed",
-          !valid && "ring-destructive ring-1"
-        )}
+        className={cn(!valid && "ring-destructive ring-2")}
       />
       {!valid && (
-        <span className="text-destructive absolute bottom-2 right-2 font-mono text-[0.65rem]">
+        <span className="text-destructive bg-background/80 absolute bottom-2 right-2 z-10 rounded px-1 font-mono text-[0.65rem]">
           invalid JSON
         </span>
       )}
@@ -137,14 +137,7 @@ export function AgentEditor({ config, update }: EditorProps) {
 export function PromptEditor({ config, update }: EditorProps) {
   return (
     <>
-      <FieldLabel>Persona — drives the agent&apos;s tone</FieldLabel>
-      <Input
-        value={config.persona}
-        onChange={(e) => update((c) => ({ ...c, persona: e.target.value }))}
-        className="mb-5"
-        placeholder="warm, concise, never pushy"
-      />
-      <FieldLabel>Prompt</FieldLabel>
+      <FieldLabel>System prompt</FieldLabel>
       <Textarea
         value={config.systemPrompt}
         onChange={(e) =>
@@ -157,112 +150,98 @@ export function PromptEditor({ config, update }: EditorProps) {
 }
 
 export function ToolsEditor({ config, update }: EditorProps) {
-  return (
-    <div className="space-y-3">
-      {config.tools.map((tool) => {
-        const badge =
-          tool.kind === "builtin"
-            ? "built-in"
-            : tool.kind === "client"
-              ? "client-side"
-              : "server";
-        return (
-          <div
-            key={tool.id}
-            className={cn(
-              "overflow-hidden rounded-md border border-border/60 bg-card transition-opacity",
-              !tool.enabled && "opacity-55"
-            )}
-          >
-            <div className="flex items-center justify-between gap-3 p-3.5">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 font-mono text-sm">
-                  {tool.name}
-                  <Chip tone={tool.kind === "server" ? "muted" : "primary"}>
-                    {badge}
-                  </Chip>
-                </div>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {tool.description}
-                </p>
-              </div>
-              <Toggle
-                checked={tool.enabled}
-                onChange={(v) =>
-                  update((c) => ({
-                    ...c,
-                    tools: c.tools.map((t) =>
-                      t.id === tool.id ? { ...t, enabled: v } : t
-                    ),
-                  }))
-                }
-                aria-label={`Enable ${tool.name}`}
-              />
-            </div>
-            {tool.code && (
-              <CodeBlock
-                code={tool.code}
-                filename={
-                  tool.language === "python"
-                    ? `${tool.name}.py`
-                    : "clientSideTools.ts"
-                }
-                className="rounded-none border-x-0 border-b-0"
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+  const builtins = config.tools.filter((t) => t.kind === "builtin");
+  const custom = config.tools.filter((t) => t.kind !== "builtin");
 
-export function SREEditor({ config, update }: EditorProps) {
   return (
-    <div className="space-y-2.5">
-      {config.sres.map((sre) => (
-        <Row
-          key={sre.id}
-          enabled={sre.enabled}
-          onToggle={(v) =>
-            update((c) => ({
-              ...c,
-              sres: c.sres.map((s) =>
-                s.id === sre.id ? { ...s, enabled: v } : s
-              ),
-            }))
-          }
-          title={`${sre.name}()`}
-        >
-          <p className="text-muted-foreground mb-2.5 text-xs">
-            {sre.description}
-          </p>
-          <div className="text-muted-foreground mb-1 font-mono text-[0.65rem] uppercase tracking-wider">
-            prompt_template
-          </div>
-          <pre className="text-foreground/75 mb-2.5 overflow-x-auto rounded bg-background/60 p-2 font-mono text-[0.72rem] leading-relaxed">
-            {sre.promptTemplate}
-          </pre>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-muted-foreground text-[0.7rem]">
-              variable_names:
-            </span>
-            {sre.variables.map((v) => (
-              <Chip key={v}>{v}</Chip>
-            ))}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="text-muted-foreground text-[0.7rem]">
-              output schema:
-            </span>
-            {sre.outputFields.map((f) => (
-              <Chip key={f.name} tone="accent">
-                {f.name}: {f.type}
-              </Chip>
-            ))}
-          </div>
-        </Row>
-      ))}
+    <div className="space-y-4">
+      {/* Built-in PageTools */}
+      <div className="border-border/60 bg-muted/30 rounded-lg border p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Boxes className="text-primary size-4" />
+            Built-in PageTools
+          </span>
+          <Chip tone="primary">{builtins.length} ready</Chip>
+        </div>
+        <p className="text-muted-foreground mb-3 text-xs">
+          Provided by @ajentify/chat — attach by name, no code, always available.
+        </p>
+        <div className="space-y-1.5">
+          {builtins.map((tool) => (
+            <div key={tool.id} className="flex items-baseline gap-2">
+              <span className="bg-primary mt-1.5 size-1.5 shrink-0 rounded-full" />
+              <code className="text-foreground font-mono text-xs">
+                {tool.name}
+              </code>
+              <span className="text-muted-foreground text-xs">
+                {tool.description}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Custom tools */}
+      <div>
+        <div className="mb-1 text-sm font-semibold">Your tools</div>
+        <p className="text-muted-foreground mb-3 text-xs">
+          Or write your own — server-side in Python, or client-side in JS that
+          posts back to the agent.
+        </p>
+        <div className="space-y-3">
+          {custom.map((tool) => (
+            <div
+              key={tool.id}
+              className={cn(
+                "overflow-hidden rounded-md border border-border/60 bg-card transition-opacity",
+                !tool.enabled && "opacity-55"
+              )}
+            >
+              <div className="flex items-center justify-between gap-3 p-3.5">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 font-mono text-sm">
+                    {tool.name}
+                    <Chip tone={tool.kind === "server" ? "muted" : "primary"}>
+                      {tool.kind === "client" ? "client-side" : "server"}
+                    </Chip>
+                  </div>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {tool.description}
+                  </p>
+                </div>
+                <Toggle
+                  checked={tool.enabled}
+                  onChange={(v) =>
+                    update((c) => ({
+                      ...c,
+                      tools: c.tools.map((t) =>
+                        t.id === tool.id ? { ...t, enabled: v } : t
+                      ),
+                    }))
+                  }
+                  aria-label={`Enable ${tool.name}`}
+                />
+              </div>
+              {tool.code && (
+                <CodeBlock
+                  code={tool.code}
+                  filename={
+                    tool.language === "python"
+                      ? `${tool.name}.py`
+                      : "clientSideTools.ts"
+                  }
+                  className="rounded-none border-x-0 border-b-0"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-muted-foreground text-xs">
+        Use the built-ins and/or your own — mix freely.
+      </p>
     </div>
   );
 }
@@ -324,7 +303,6 @@ export function DataWindowEditor({ config, update }: EditorProps) {
     }));
   }
 
-  // Auto "live feed": sell one Aurora Lamp every few seconds while on.
   useEffect(() => {
     if (!live || !firstWindowId) return;
     const t = window.setInterval(() => {
@@ -398,8 +376,9 @@ export function DataWindowEditor({ config, update }: EditorProps) {
 }
 
 export function DeployView({ config }: { config: AgentConfig }) {
-  const enabledTools = config.tools.filter((t) => t.enabled).length;
-  const enabledSres = config.sres.filter((s) => s.enabled).length;
+  const enabledTools = config.tools.filter(
+    (t) => t.enabled && t.kind !== "builtin"
+  ).length;
 
   return (
     <>
@@ -417,9 +396,6 @@ export function DeployView({ config }: { config: AgentConfig }) {
           <div className="text-emerald-400">+ agent &nbsp;&nbsp;{config.name}</div>
           <div className="text-emerald-400">
             + tools &nbsp;&nbsp;{enabledTools} created
-          </div>
-          <div className="text-emerald-400">
-            + sres &nbsp;&nbsp;&nbsp;{enabledSres} created
           </div>
           <div className="pt-1 text-zinc-400">
             ✓ deployed to stage <span className="text-primary">dev</span> in 2.1s

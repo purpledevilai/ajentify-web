@@ -40,11 +40,6 @@ const clientSideTools = defineClientSideTools({
   },
 });`;
 
-const EXTRACT_PROMPT = `Extract the product and the customer's intent
-from this message.
-
-Message: MESSAGE`;
-
 export const INITIAL_CONFIG: AgentConfig = {
   name: "Storefront Assistant",
   model: "gpt",
@@ -62,8 +57,21 @@ Never invent stock numbers or policies.`,
     {
       id: "t_nav",
       name: "navigate",
-      description:
-        "Reserved PageTool — provided by @ajentify/chat. Drives your router; attach by name, no code.",
+      description: "Open any page in your app.",
+      kind: "builtin",
+      enabled: true,
+    },
+    {
+      id: "t_getpage",
+      name: "get_page_data",
+      description: "Read what the user is looking at.",
+      kind: "builtin",
+      enabled: true,
+    },
+    {
+      id: "t_doaction",
+      name: "do_page_action",
+      description: "Click buttons and act on the page.",
       kind: "builtin",
       enabled: true,
     },
@@ -86,20 +94,7 @@ Never invent stock numbers or policies.`,
       code: ADD_TO_CART_CODE,
     },
   ],
-  sres: [
-    {
-      id: "s_extract",
-      name: "extract_request",
-      description: "Pull structured intent out of a free-text message.",
-      promptTemplate: EXTRACT_PROMPT,
-      variables: ["MESSAGE"],
-      outputFields: [
-        { name: "product", type: "string" },
-        { name: "intent", type: "enum" },
-      ],
-      enabled: true,
-    },
-  ],
+  sres: [],
   memDocs: [
     {
       id: "m_pol",
@@ -131,17 +126,6 @@ const DEMO_QUESTION =
 export const mockRuntime: AgentRuntime = {
   derivePreview(config: AgentConfig): PreviewModel {
     const steps: PreviewStep[] = [];
-
-    const sre = config.sres.find((s) => s.enabled);
-    if (sre) {
-      steps.push({
-        kind: "sre",
-        name: sre.name,
-        meta: "SRE",
-        input: prettyJson({ MESSAGE: DEMO_QUESTION }),
-        output: prettyJson({ product: "Aurora Lamp", intent: "stock_and_returns" }),
-      });
-    }
 
     const navTool = config.tools.find((t) => t.enabled && t.name === "navigate");
     if (navTool) {
@@ -209,8 +193,8 @@ export const mockRuntime: AgentRuntime = {
 
 /**
  * Builds the deploy manifest (ajentify.json) from live config. Built-in
- * PageTools are attached by name but not defined here; only custom tools and
- * SREs appear in the resource maps.
+ * PageTools are attached by name but not defined here; only custom tools
+ * appear in the resource map.
  */
 export function buildManifest(config: AgentConfig): string {
   const model = MODELS.find((m) => m.id === config.model) ?? MODELS[0];
@@ -221,16 +205,6 @@ export function buildManifest(config: AgentConfig): string {
     .map(
       (t) =>
         `    "${t.name}": { "is_client_side_tool": ${t.kind === "client"}, "pass_context": ${t.kind === "server"} }`
-    )
-    .join(",\n");
-
-  const sreEntries = config.sres
-    .filter((s) => s.enabled)
-    .map(
-      (s) =>
-        `    "${s.name}": { "prompt_template": "Extract the product and intent from: MESSAGE", "variable_names": [${s.variables
-          .map((v) => `"${v}"`)
-          .join(", ")}] }`
     )
     .join(",\n");
 
@@ -245,9 +219,6 @@ export function buildManifest(config: AgentConfig): string {
   },
   "tools": {
 ${toolEntries || "    "}
-  },
-  "sres": {
-${sreEntries || "    "}
   }
 }`;
 }

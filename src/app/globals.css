@@ -247,6 +247,22 @@
     );
 }
 
+/* Soft "desktop" backdrop the demo windows float on (drag surface). */
+.demo-desktop {
+  background-color: var(--muted);
+  background-image:
+    radial-gradient(
+      120% 120% at 0% 0%,
+      color-mix(in oklab, var(--primary) 24%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      120% 120% at 100% 100%,
+      color-mix(in oklab, var(--accent) 20%, transparent),
+      transparent 55%
+    );
+}
+
 @layer utilities {
   /* Drafting-sheet grid */
   .marketing-grid {

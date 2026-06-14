@@ -29,6 +29,7 @@ export function SreDemo() {
     { text: "# edit the schema, then run →", tone: "muted" },
   ]);
 
+  const [front, setFront] = useState<"a" | "b">("b");
   const stageRef = useRef<HTMLDivElement>(null);
 
   function run() {
@@ -48,12 +49,19 @@ export function SreDemo() {
   }
 
   return (
-    <div ref={stageRef} className="relative h-full w-full">
+    <div
+      ref={stageRef}
+      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
+    >
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("a")}
         title="sre · extract_lead"
-        className="absolute left-0 top-0 z-10 h-[84%] w-[84%]"
+        className={cn(
+          "absolute left-[3%] top-[4%] h-[80%] w-[80%]",
+          front === "a" ? "z-30" : "z-10"
+        )}
       >
         <div className="flex min-h-0 flex-1">
           {/* Output schema editor (sidebar) */}
@@ -143,8 +151,12 @@ export function SreDemo() {
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("b")}
         title="terminal"
-        className="absolute bottom-0 right-0 z-20 h-[52%] w-[58%]"
+        className={cn(
+          "absolute bottom-[4%] right-[3%] h-[50%] w-[56%]",
+          front === "b" ? "z-30" : "z-10"
+        )}
       >
         <Terminal lines={lines} className="h-full" />
       </WindowFrame>

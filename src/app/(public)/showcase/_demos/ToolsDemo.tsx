@@ -83,6 +83,7 @@ export function ToolsDemo() {
     { kind: "agent", text: "Hey! I'm Acme support. What can I help with today?" },
   ]);
   const [thinking, setThinking] = useState(false);
+  const [front, setFront] = useState<"a" | "b">("b");
   const stageRef = useRef<HTMLDivElement>(null);
 
   function run(p: string) {
@@ -98,12 +99,19 @@ export function ToolsDemo() {
   }
 
   return (
-    <div ref={stageRef} className="relative h-full w-full">
+    <div
+      ref={stageRef}
+      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
+    >
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("a")}
         url="support.acme.store"
-        className="absolute left-0 top-0 z-10 h-[82%] w-[84%]"
+        className={cn(
+          "absolute left-[3%] top-[4%] h-[78%] w-[80%]",
+          front === "a" ? "z-30" : "z-10"
+        )}
       >
         <div className="flex min-h-0 flex-1">
           {/* Tools sidebar */}
@@ -156,12 +164,16 @@ export function ToolsDemo() {
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("b")}
         title={
           selected.kind === "builtin"
             ? `${selected.name} · built-in`
             : `${selected.name}.py`
         }
-        className="absolute bottom-0 right-0 z-20 h-[56%] w-[52%]"
+        className={cn(
+          "absolute bottom-[4%] right-[3%] h-[54%] w-[50%]",
+          front === "b" ? "z-30" : "z-10"
+        )}
       >
           {selected.code ? (
             <CodeBlock code={selected.code} className="h-full rounded-none border-0" />

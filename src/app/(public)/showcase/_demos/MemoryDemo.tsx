@@ -61,12 +61,15 @@ export function MemoryDemo() {
   }
 
   return (
-    <div ref={stageRef} className="relative h-full w-full">
+    <div
+      ref={stageRef}
+      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
+    >
       <WindowFrame
         draggable
         constraintsRef={stageRef}
         title="memory · user_842"
-        className="absolute left-[3%] top-0 z-10 h-[94%] w-[94%]"
+        className="absolute left-[6%] top-[6%] z-10 h-[88%] w-[88%]"
       >
         <div className="flex min-h-0 flex-1">
           <div className="border-border/50 flex w-[48%] shrink-0 flex-col border-r">

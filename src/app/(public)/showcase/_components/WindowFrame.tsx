@@ -15,6 +15,7 @@ export function WindowFrame({
   title,
   draggable,
   constraintsRef,
+  onFocus,
   className,
   bodyClassName,
   children,
@@ -23,6 +24,7 @@ export function WindowFrame({
   title?: string;
   draggable?: boolean;
   constraintsRef?: RefObject<HTMLElement | null>;
+  onFocus?: () => void;
   className?: string;
   bodyClassName?: string;
   children: React.ReactNode;
@@ -43,6 +45,7 @@ export function WindowFrame({
   return (
     <motion.div
       {...dragProps}
+      onPointerDownCapture={onFocus}
       className={cn(
         "ring-border/70 flex flex-col overflow-hidden rounded-xl bg-card shadow-[0_30px_80px_-24px_rgba(30,41,90,0.35),0_8px_24px_-12px_rgba(30,41,90,0.18)] ring-1",
         className

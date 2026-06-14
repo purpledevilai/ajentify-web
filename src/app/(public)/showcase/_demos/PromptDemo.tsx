@@ -28,6 +28,7 @@ export function PromptDemo() {
   const [company, setCompany] = useState("Acme");
   const [turns, setTurns] = useState<ChatItem[]>([]);
   const [thinking, setThinking] = useState(false);
+  const [front, setFront] = useState<"a" | "b">("b");
   const stageRef = useRef<HTMLDivElement>(null);
 
   const modelLabel = MODELS.find((m) => m.id === model)?.label;
@@ -50,12 +51,19 @@ export function PromptDemo() {
   }
 
   return (
-    <div ref={stageRef} className="relative h-full w-full">
+    <div
+      ref={stageRef}
+      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
+    >
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("a")}
         title="agent · playground"
-        className="absolute left-0 top-0 z-10 h-[82%] w-[84%]"
+        className={cn(
+          "absolute left-[3%] top-[4%] h-[78%] w-[80%]",
+          front === "a" ? "z-30" : "z-10"
+        )}
       >
         <div className="flex min-h-0 flex-1">
           {/* Controls sidebar */}
@@ -110,8 +118,12 @@ export function PromptDemo() {
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("b")}
         title="voice · live call"
-        className="absolute bottom-0 right-0 z-20 h-[58%] w-[50%]"
+        className={cn(
+          "absolute bottom-[4%] right-[3%] h-[56%] w-[48%]",
+          front === "b" ? "z-30" : "z-10"
+        )}
       >
         <VoiceCall name={name} />
       </WindowFrame>

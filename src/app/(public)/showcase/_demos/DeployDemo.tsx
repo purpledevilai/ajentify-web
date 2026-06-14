@@ -29,6 +29,7 @@ export function DeployDemo() {
   ]);
   const [busy, setBusy] = useState(false);
   const timers = useRef<number[]>([]);
+  const [front, setFront] = useState<"a" | "b">("b");
   const stageRef = useRef<HTMLDivElement>(null);
 
   function deploy() {
@@ -58,13 +59,20 @@ export function DeployDemo() {
   }
 
   return (
-    <div ref={stageRef} className="relative h-full w-full">
+    <div
+      ref={stageRef}
+      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
+    >
       {/* Repo / editor window */}
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("a")}
         title="your-app — ajentify.json"
-        className="absolute left-0 top-0 z-10 h-[82%] w-[84%]"
+        className={cn(
+          "absolute left-[3%] top-[4%] h-[78%] w-[80%]",
+          front === "a" ? "z-30" : "z-10"
+        )}
       >
         <div className="flex min-h-0 flex-1">
           <div className="border-border/50 text-foreground/80 w-[34%] max-w-[11rem] shrink-0 space-y-0.5 overflow-y-auto border-r p-2 text-[0.72rem]">
@@ -94,8 +102,12 @@ export function DeployDemo() {
       <WindowFrame
         draggable
         constraintsRef={stageRef}
+        onFocus={() => setFront("b")}
         title="Ajentify CLI"
-        className="absolute bottom-0 right-0 z-20 h-[58%] w-[56%]"
+        className={cn(
+          "absolute bottom-[4%] right-[3%] h-[56%] w-[54%]",
+          front === "b" ? "z-30" : "z-10"
+        )}
       >
           <div className="border-border/50 flex items-center gap-2 border-b bg-card p-2">
             <span className="text-muted-foreground text-[0.58rem] font-medium uppercase tracking-wider">

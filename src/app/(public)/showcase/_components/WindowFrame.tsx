@@ -16,6 +16,7 @@ export function WindowFrame({
   draggable,
   constraintsRef,
   onFocus,
+  z,
   className,
   bodyClassName,
   children,
@@ -25,6 +26,7 @@ export function WindowFrame({
   draggable?: boolean;
   constraintsRef?: RefObject<HTMLElement | null>;
   onFocus?: () => void;
+  z?: number;
   className?: string;
   bodyClassName?: string;
   children: React.ReactNode;
@@ -38,7 +40,7 @@ export function WindowFrame({
         dragMomentum: false,
         dragElastic: 0.04,
         dragConstraints: constraintsRef,
-        whileDrag: { zIndex: 50, boxShadow: "0 40px 90px -20px rgba(30,41,90,0.45)" },
+        whileDrag: { boxShadow: "0 40px 90px -20px rgba(30,41,90,0.45)" },
       }
     : {};
 
@@ -46,15 +48,16 @@ export function WindowFrame({
     <motion.div
       {...dragProps}
       onPointerDownCapture={onFocus}
+      style={z !== undefined ? { zIndex: z } : undefined}
       className={cn(
-        "ring-border/70 flex flex-col overflow-hidden rounded-xl bg-card shadow-[0_30px_80px_-24px_rgba(30,41,90,0.35),0_8px_24px_-12px_rgba(30,41,90,0.18)] ring-1",
+        "ring-border/60 flex flex-col overflow-hidden rounded-xl bg-card/70 shadow-[0_30px_80px_-24px_rgba(30,41,90,0.4),0_8px_24px_-12px_rgba(30,41,90,0.2)] ring-1 backdrop-blur-2xl supports-[backdrop-filter]:bg-card/60",
         className
       )}
     >
       <div
         onPointerDown={draggable ? (e) => controls.start(e) : undefined}
         className={cn(
-          "border-border/60 bg-muted/50 flex items-center gap-2 border-b px-3.5 py-2.5",
+          "border-border/50 bg-muted/30 flex items-center gap-2 border-b px-3.5 py-2.5",
           draggable && "cursor-grab touch-none select-none active:cursor-grabbing"
         )}
       >

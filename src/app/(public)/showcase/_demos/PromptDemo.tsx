@@ -6,12 +6,14 @@ import { Bot, PhoneOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WindowFrame } from "../_components/WindowFrame";
 import { Chat, type ChatItem } from "../_components/Chat";
+import { ModelPicker, modelLabel, DEFAULT_MODEL } from "../_components/ModelPicker";
+import { DemoStage } from "../_components/DemoStage";
 
-const MODELS = [
-  { id: "claude", label: "Claude" },
-  { id: "gpt", label: "GPT-5.2" },
-  { id: "gemini", label: "Gemini" },
-];
+const DEFAULT_PROMPT = `You are {{COMPANY}}'s customer assistant. Greet {{USER_NAME}} warmly, then help with orders, returns, product questions and account settings.
+
+Be concise and friendly. Confirm before taking any action that changes an order. If you're unsure what someone means, ask one clarifying question instead of guessing.
+
+Never share another customer's details. Stay in character as a member of the {{COMPANY}} team.`;
 
 const RESPONSES: Record<string, (name: string, company: string) => string> = {
   "What can you do?": (n, c) =>
@@ -23,18 +25,19 @@ const RESPONSES: Record<string, (name: string, company: string) => string> = {
 };
 
 export function PromptDemo() {
-  const [model, setModel] = useState("gpt");
+  const [model, setModel] = useState(DEFAULT_MODEL);
   const [name, setName] = useState("Alex");
   const [company, setCompany] = useState("Acme");
+  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [turns, setTurns] = useState<ChatItem[]>([]);
   const [thinking, setThinking] = useState(false);
   const [front, setFront] = useState<"a" | "b">("b");
   const stageRef = useRef<HTMLDivElement>(null);
 
-  const modelLabel = MODELS.find((m) => m.id === model)?.label;
+  const label = modelLabel(model);
   const greeting: ChatItem = {
     kind: "agent",
-    text: `Hi ${name || "there"} — I'm ${company || "Acme"}'s assistant on ${modelLabel}. How can I help?`,
+    text: `Hi ${name || "there"} — I'm ${company || "Acme"}'s assistant on ${label}. How can I help?`,
   };
 
   function ask(p: string) {
@@ -51,23 +54,18 @@ export function PromptDemo() {
   }
 
   return (
-    <div
-      ref={stageRef}
-      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
-    >
+    <DemoStage image="/showcase/agent.jpg" stageRef={stageRef}>
       <WindowFrame
         draggable
         constraintsRef={stageRef}
         onFocus={() => setFront("a")}
         title="agent · playground"
-        className={cn(
-          "absolute left-[3%] top-[4%] h-[78%] w-[80%]",
-          front === "a" ? "z-30" : "z-10"
-        )}
+        z={front === "a" ? 30 : 20}
+        className="absolute left-[3%] top-[4%] h-[78%] w-[80%]"
       >
         <div className="flex min-h-0 flex-1">
           {/* Controls sidebar */}
-          <div className="border-border/50 w-[38%] max-w-[12rem] shrink-0 space-y-3.5 overflow-y-auto border-r p-3">
+          <div className="border-border/50 flex w-[46%] max-w-[19rem] shrink-0 flex-col gap-3 overflow-hidden border-r p-3">
             <Group label="Name">
               <input
                 value={name}
@@ -76,24 +74,19 @@ export function PromptDemo() {
               />
             </Group>
             <Group label="Model">
-              <div className="flex flex-col gap-1">
-                {MODELS.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setModel(m.id)}
-                    className={cn(
-                      "rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors",
-                      model === m.id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
+              <ModelPicker value={model} onChange={setModel} />
             </Group>
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="text-muted-foreground mb-1.5 text-[0.6rem] font-medium uppercase tracking-wider">
+                System prompt
+              </div>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                spellCheck={false}
+                className="border-border/60 bg-card min-h-[7rem] flex-1 resize-none rounded-md border p-2 font-mono text-[0.7rem] leading-relaxed outline-none"
+              />
+            </div>
             <Group label="Prompt args">
               <Arg label="USER_NAME" value={name} onChange={setName} />
               <Arg label="COMPANY" value={company} onChange={setCompany} />
@@ -104,7 +97,7 @@ export function PromptDemo() {
           <div className="min-w-0 flex-1">
             <Chat
               items={[greeting, ...turns]}
-              header={{ name: `${company || "Acme"} Assistant`, sub: modelLabel }}
+              header={{ name: `${company || "Acme"} Assistant`, sub: label }}
               thinking={thinking}
               prompts={Object.keys(RESPONSES)}
               onPrompt={ask}
@@ -120,14 +113,12 @@ export function PromptDemo() {
         constraintsRef={stageRef}
         onFocus={() => setFront("b")}
         title="voice · live call"
-        className={cn(
-          "absolute bottom-[4%] right-[3%] h-[56%] w-[48%]",
-          front === "b" ? "z-30" : "z-10"
-        )}
+        z={front === "b" ? 30 : 20}
+        className="absolute bottom-[4%] right-[3%] h-[56%] w-[48%]"
       >
         <VoiceCall name={name} />
       </WindowFrame>
-    </div>
+    </DemoStage>
   );
 }
 
@@ -155,7 +146,7 @@ function VoiceCall({ name }: { name: string }) {
   }, []);
 
   return (
-    <div className="flex h-full flex-col items-center bg-background p-3 text-center">
+    <div className="flex h-full flex-col items-center bg-transparent p-3 text-center">
       <div className="relative mt-1">
         <motion.span
           className="bg-primary/30 absolute inset-0 rounded-full"

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { CodeBlock } from "@/components/marketing/code-block";
 import { WindowFrame } from "../_components/WindowFrame";
 import { Chat, type ChatItem } from "../_components/Chat";
+import { DemoStage } from "../_components/DemoStage";
 
 type Tool = {
   name: string;
@@ -120,20 +121,15 @@ export function ToolsDemo() {
   }
 
   return (
-    <div
-      ref={stageRef}
-      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
-    >
+    <DemoStage image="/showcase/tools.jpg" stageRef={stageRef}>
       {/* Tool editor */}
       <WindowFrame
         draggable
         constraintsRef={stageRef}
         onFocus={() => setFront("a")}
         title="tools · acme-store"
-        className={cn(
-          "absolute left-[3%] top-[4%] h-[80%] w-[80%]",
-          front === "a" ? "z-30" : "z-10"
-        )}
+        z={front === "a" ? 30 : 20}
+        className="absolute left-[3%] top-[4%] h-[80%] w-[80%]"
       >
         <div className="flex min-h-0 flex-1">
           {/* Sidebar */}
@@ -212,6 +208,7 @@ export function ToolsDemo() {
                 </div>
                 <CodeBlock
                   code={selected.code}
+                  transparent
                   filename={
                     selected.runtime === "client"
                       ? "clientSideTools.ts"
@@ -235,10 +232,8 @@ export function ToolsDemo() {
         constraintsRef={stageRef}
         onFocus={() => setFront("b")}
         url="support.acme.store"
-        className={cn(
-          "absolute bottom-[4%] right-[3%] h-[60%] w-[44%]",
-          front === "b" ? "z-30" : "z-10"
-        )}
+        z={front === "b" ? 30 : 20}
+        className="absolute bottom-[4%] right-[3%] h-[60%] w-[44%]"
       >
         <Chat
           items={turns}
@@ -249,6 +244,6 @@ export function ToolsDemo() {
           disabled={thinking}
         />
       </WindowFrame>
-    </div>
+    </DemoStage>
   );
 }

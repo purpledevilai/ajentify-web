@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { WindowFrame } from "../_components/WindowFrame";
 import { JsonField } from "../_components/JsonField";
 import { Chat, type ChatItem } from "../_components/Chat";
+import { DemoStage } from "../_components/DemoStage";
 
 const INITIAL = {
   "Aurora Lamp": { stock: 8, price: 149 },
@@ -67,10 +68,7 @@ export function DataWindowDemo() {
   ];
 
   return (
-    <div
-      ref={stageRef}
-      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
-    >
+    <DemoStage image="/showcase/data.jpg" stageRef={stageRef}>
       <WindowFrame
         draggable
         constraintsRef={stageRef}
@@ -92,7 +90,7 @@ export function DataWindowDemo() {
               value={data}
               onChange={setData}
               minHeight="100%"
-              className="min-h-0 flex-1 [&>div]:h-full [&>div]:rounded-none [&>div]:border-0"
+              className="min-h-0 flex-1 [&>div]:h-full [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent [&_.cm-theme]:h-full [&_.cm-editor]:h-full"
             />
             <div className="border-border/50 flex flex-wrap gap-2 border-t p-2.5">
               <button
@@ -123,6 +121,6 @@ export function DataWindowDemo() {
           </div>
         </div>
       </WindowFrame>
-    </div>
+    </DemoStage>
   );
 }

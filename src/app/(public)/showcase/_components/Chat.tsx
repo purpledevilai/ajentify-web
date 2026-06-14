@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, Sparkles, User, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,8 +32,16 @@ export function Chat({
   thinking?: boolean;
   disabled?: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Keep the newest message / response in view as the conversation grows.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [items, thinking]);
+
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col bg-transparent">
       {header && (
         <div className="border-border/50 flex items-center gap-2.5 border-b px-3.5 py-2.5">
           <span className="bg-gradient-brand flex size-7 items-center justify-center rounded-full">
@@ -55,7 +64,10 @@ export function Chat({
         </div>
       )}
 
-      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5 text-[0.82rem]">
+      <div
+        ref={scrollRef}
+        className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3.5 text-[0.82rem]"
+      >
         <AnimatePresence initial={false}>
           {items.map((item, i) => (
             <motion.div

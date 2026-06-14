@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { WindowFrame } from "../_components/WindowFrame";
 import { JsonField } from "../_components/JsonField";
 import { Chat, type ChatItem } from "../_components/Chat";
+import { DemoStage } from "../_components/DemoStage";
 
 const INITIAL = {
   name: "Maya Chen",
@@ -61,10 +62,7 @@ export function MemoryDemo() {
   }
 
   return (
-    <div
-      ref={stageRef}
-      className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
-    >
+    <DemoStage image="/showcase/memory.jpg" stageRef={stageRef}>
       <WindowFrame
         draggable
         constraintsRef={stageRef}
@@ -80,7 +78,7 @@ export function MemoryDemo() {
               value={data}
               onChange={setData}
               minHeight="100%"
-              className="min-h-0 flex-1 [&>div]:h-full [&>div]:rounded-none [&>div]:border-0"
+              className="min-h-0 flex-1 [&>div]:h-full [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent [&_.cm-theme]:h-full [&_.cm-editor]:h-full"
             />
           </div>
           <div className="min-w-0 flex-1">
@@ -94,6 +92,6 @@ export function MemoryDemo() {
           </div>
         </div>
       </WindowFrame>
-    </div>
+    </DemoStage>
   );
 }

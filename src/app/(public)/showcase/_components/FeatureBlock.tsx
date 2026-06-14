@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function FeatureBlock({
@@ -10,6 +11,8 @@ export function FeatureBlock({
   title,
   body,
   points,
+  docs,
+  docsLabel = "Read the docs",
   reverse,
   children,
 }: {
@@ -18,6 +21,8 @@ export function FeatureBlock({
   title: React.ReactNode;
   body: string;
   points?: string[];
+  docs?: string;
+  docsLabel?: string;
   reverse?: boolean;
   children: React.ReactNode;
 }) {
@@ -66,6 +71,15 @@ export function FeatureBlock({
                   </li>
                 ))}
               </ul>
+            )}
+            {docs && (
+              <Link
+                href={docs}
+                className="text-primary group/docs mt-7 inline-flex items-center gap-1.5 text-sm font-semibold"
+              >
+                {docsLabel}
+                <ArrowUpRight className="size-4 transition-transform group-hover/docs:translate-x-0.5 group-hover/docs:-translate-y-0.5" />
+              </Link>
             )}
           </motion.div>
 

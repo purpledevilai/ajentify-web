@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/components/marketing/code-block";
+import { SectionLabel } from "@/components/marketing/section-label";
 
 const CODE = `from ajentify_testing import SimAgent, TargetContext, run_conversation
 
@@ -26,9 +27,7 @@ export function TestingFrameworkSection() {
   return (
     <section className="border-t border-border/50">
       <div className="container mx-auto max-w-5xl px-6 py-20 md:py-28">
-        <div className="text-primary mb-3 text-sm font-semibold uppercase tracking-wider">
-          Agent Testing
-        </div>
+        <SectionLabel index="05">Agent testing</SectionLabel>
         <div className="grid items-start gap-12 md:grid-cols-2">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">

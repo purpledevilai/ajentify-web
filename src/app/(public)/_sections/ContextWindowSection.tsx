@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/components/marketing/code-block";
+import { SectionLabel } from "@/components/marketing/section-label";
 import { Braces, Database, SlidersHorizontal, Variable } from "lucide-react";
 
 const CODE = `# Create a personalized context
@@ -50,9 +51,7 @@ export function ContextWindowSection() {
   return (
     <section className="bg-muted/40 border-t border-border/50">
       <div className="container mx-auto max-w-5xl px-6 py-20 md:py-28">
-        <div className="text-primary mb-3 text-sm font-semibold uppercase tracking-wider">
-          Room to grow
-        </div>
+        <SectionLabel index="04">Room to grow</SectionLabel>
         <div className="grid items-start gap-12 md:grid-cols-2">
           <CodeBlock code={CODE} filename="context.py" />
 

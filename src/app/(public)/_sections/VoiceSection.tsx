@@ -1,4 +1,5 @@
 import { Mic, MonitorSpeaker, Phone, Wrench } from "lucide-react";
+import { SectionLabel } from "@/components/marketing/section-label";
 
 const HIGHLIGHTS = [
   {
@@ -27,9 +28,7 @@ export function VoiceSection() {
   return (
     <section className="bg-muted/40 border-t border-border/50">
       <div className="container mx-auto max-w-5xl px-6 py-20 md:py-28">
-        <div className="text-primary mb-3 text-sm font-semibold uppercase tracking-wider">
-          Voice Agents
-        </div>
+        <SectionLabel index="06">Voice agents</SectionLabel>
         <div className="max-w-2xl">
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
             Same agent, now with a voice

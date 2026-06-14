@@ -1,4 +1,5 @@
 import { CodeBlock } from "@/components/marketing/code-block";
+import { SectionLabel } from "@/components/marketing/section-label";
 import { MessageSquare } from "lucide-react";
 
 const CODE = `import { AjentifyProvider, defineClientSideTools } from '@ajentify/chat';
@@ -31,9 +32,7 @@ export function EmbeddedChatSection() {
   return (
     <section className="border-t border-border/50">
       <div className="container mx-auto max-w-5xl px-6 py-20 md:py-28">
-        <div className="text-primary mb-3 text-sm font-semibold uppercase tracking-wider">
-          Frontend SDK
-        </div>
+        <SectionLabel index="03">Frontend SDK</SectionLabel>
         <div className="grid items-start gap-12 md:grid-cols-2">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">

@@ -3,7 +3,7 @@ import { Button } from "@/components/primitives/button";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
 import { HeroSection } from "./_sections/HeroSection";
 import { ProofStrip } from "./_sections/ProofStrip";
-import { AnatomySection } from "./_sections/anatomy/AnatomySection";
+import { InteractiveBuild } from "./_sections/InteractiveBuild";
 import { StartFastSection } from "./_sections/StartFastSection";
 import { EmbeddedChatSection } from "./_sections/EmbeddedChatSection";
 import { ContextWindowSection } from "./_sections/ContextWindowSection";
@@ -15,7 +15,7 @@ export default function LandingPage() {
     <>
       <HeroSection />
       <ProofStrip />
-      <AnatomySection />
+      <InteractiveBuild />
       <StartFastSection />
       <EmbeddedChatSection />
       <ContextWindowSection />
@@ -34,8 +34,8 @@ export default function LandingPage() {
             Free to start — no credit card.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <CopyPromptDialog label="Copy starter prompt" />
-            <Button asChild variant="outline" size="lg">
+            <CopyPromptDialog label="Copy starter prompt" className="rounded-full" />
+            <Button asChild variant="outline" size="lg" className="rounded-full">
               <Link href="/sign-up">Create an account</Link>
             </Button>
           </div>

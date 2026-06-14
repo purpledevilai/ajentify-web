@@ -1,5 +1,6 @@
 import { CodeBlock } from "@/components/marketing/code-block";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
+import { SectionLabel } from "@/components/marketing/section-label";
 
 const CODE = `# Point the SDK at your Ajentify org, then:
 
@@ -25,9 +26,7 @@ export function StartFastSection() {
   return (
     <section className="border-t border-border/50 bg-muted/40">
       <div className="container mx-auto max-w-5xl px-6 py-20 md:py-28">
-        <div className="text-primary mb-3 text-sm font-semibold uppercase tracking-wider">
-          Start fast
-        </div>
+        <SectionLabel index="02">Start fast</SectionLabel>
         <div className="grid items-start gap-12 md:grid-cols-2">
           <div>
             <h2 className="font-display text-3xl font-bold tracking-tight md:text-4xl">
@@ -47,7 +46,10 @@ export function StartFastSection() {
               ))}
             </ul>
             <div className="mt-8">
-              <CopyPromptDialog label="Copy a starter prompt for Claude Code" />
+              <CopyPromptDialog
+                label="Copy a starter prompt for Claude Code"
+                className="rounded-full"
+              />
               <p className="text-muted-foreground mt-3 text-sm">
                 Paste it into your AI editor and it scaffolds the whole agent.
               </p>

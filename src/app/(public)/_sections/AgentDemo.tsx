@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Button } from "@/components/primitives/button";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
-import { AgentPreview } from "./anatomy/AgentPreview";
+import { StorefrontPanel } from "./StorefrontPanel";
 import {
   AgentEditor,
   PromptEditor,
@@ -21,6 +21,7 @@ import type { AgentConfig } from "./anatomy/types";
 type Update = (fn: (c: AgentConfig) => AgentConfig) => void;
 
 interface CardDef {
+  id: string;
   n: string;
   label: string;
   title: string;
@@ -30,6 +31,7 @@ interface CardDef {
 
 const CARDS: CardDef[] = [
   {
+    id: "agent",
     n: "01",
     label: "Agent + prompt",
     title: "Describe it in plain language",
@@ -44,6 +46,7 @@ const CARDS: CardDef[] = [
     ),
   },
   {
+    id: "tools",
     n: "02",
     label: "Tools",
     title: "Give it tools that drive your app",
@@ -51,6 +54,7 @@ const CARDS: CardDef[] = [
     render: (config, update) => <ToolsEditor config={config} update={update} />,
   },
   {
+    id: "sres",
     n: "03",
     label: "SREs",
     title: "Typed LLM calls you reuse",
@@ -58,22 +62,25 @@ const CARDS: CardDef[] = [
     render: (config, update) => <SREEditor config={config} update={update} />,
   },
   {
+    id: "memdocs",
     n: "04",
     label: "Mem-docs",
     title: "Hand it knowledge as JSON",
-    body: "A JSON document the agent reads as context. Edit a field — the answer on the right changes with it.",
+    body: "A JSON document the agent reads as context. Edit a field — the answer in the chat changes with it.",
     render: (config, update) => <MemDocEditor config={config} update={update} />,
   },
   {
+    id: "datawindows",
     n: "05",
     label: "Data Windows",
     title: "Stream in live data",
-    body: "A live JSON document injected into the context. Sell an Aurora Lamp and the window updates — the agent reads the new stock instantly, because it's the same live data your app writes.",
+    body: "A live JSON document injected into the context. Sell an Aurora Lamp and the product page's stock — and the agent's answer — update together.",
     render: (config, update) => (
       <DataWindowEditor config={config} update={update} />
     ),
   },
   {
+    id: "ship",
     n: "06",
     label: "Ship it",
     title: "Test it, voice it, deploy it",
@@ -105,78 +112,99 @@ export function AgentDemo() {
   const update: Update = (fn) => setConfig(fn);
   const preview = mockRuntime.derivePreview(config);
 
+  const [active, setActive] = useState("agent");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const sections = Array.from(
+      root.querySelectorAll<HTMLElement>("[data-section]")
+    );
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (!visible.length) return;
+        const best = visible.reduce((a, b) =>
+          b.intersectionRatio > a.intersectionRatio ? b : a
+        );
+        const id = best.target.getAttribute("data-section");
+        if (id) setActive(id);
+      },
+      { rootMargin: "-45% 0px -45% 0px", threshold: [0, 0.5, 1] }
+    );
+    sections.forEach((s) => obs.observe(s));
+    return () => obs.disconnect();
+  }, []);
+
   return (
-    <section className="marketing-grid border-border/60 relative border-b">
-      <div className="lg:flex lg:items-stretch">
-        {/* Main column — hero blends straight into the cards */}
-        <div className="min-w-0 flex-1">
-          <div className="mx-auto max-w-3xl px-6 pb-20 md:pb-28">
-            {/* Hero */}
-            <div className="pb-8 pt-16 md:pt-24">
-              <div className="fig-label text-muted-foreground mb-5 flex items-center gap-2">
-                <span className="bg-primary inline-block size-2" />
-                Fully-hosted agent infrastructure
-              </div>
-              <h1 className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl">
-                Build AI agents,
-                <br />
-                <span className="text-gradient-brand">not infrastructure.</span>
-              </h1>
-              <p className="text-muted-foreground mt-5 max-w-md text-lg">
-                Prototype in an afternoon. Scale to production — on the same
-                platform.
-              </p>
-              <div className="mt-7 flex flex-wrap gap-3">
-                <CopyPromptDialog
-                  label="Copy starter prompt"
-                  size="md"
-                  className="rounded-full"
-                />
-                <Button
-                  asChild
-                  variant="outline"
-                  size="md"
-                  className="rounded-full"
-                >
-                  <Link href="/sign-up">Start building — free</Link>
-                </Button>
-              </div>
+    <section className="showcase-stage marketing-grid relative">
+      <div
+        ref={containerRef}
+        className="lg:grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]"
+      >
+        {/* Hero — top-left */}
+        <div className="lg:col-start-1 lg:row-start-1">
+          <div className="mx-auto w-full max-w-2xl px-6 pb-6 pt-16 md:pt-24 lg:px-12">
+            <div className="fig-label text-muted-foreground mb-5 flex items-center gap-2">
+              <span className="bg-primary inline-block size-2" />
+              Fully-hosted agent infrastructure
             </div>
-
-            {/* Agent output on mobile (inline) */}
-            <div className="mb-10 h-[460px] lg:hidden">
-              <AgentPreview preview={preview} />
-            </div>
-
-            {/* Inline control sections — no cards, just hairline dividers */}
-            <div className="divide-border/60 divide-y">
-              {CARDS.map((card) => (
-                <div key={card.n} className="py-10 first:pt-2">
-                  <div className="fig-label text-muted-foreground mb-3 flex items-center gap-2">
-                    <span className="bg-primary inline-block size-2" />
-                    <span className="text-primary">{card.n}</span>
-                    <span className="text-border">/</span>
-                    <span className="text-foreground">{card.label}</span>
-                  </div>
-                  <h3 className="font-display text-2xl font-bold tracking-tight">
-                    {card.title}
-                  </h3>
-                  <p className="text-muted-foreground mb-6 mt-2 max-w-xl">
-                    {card.body}
-                  </p>
-                  {card.render(config, update)}
-                </div>
-              ))}
+            <h1 className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl">
+              Build AI agents,
+              <br />
+              <span className="text-gradient-brand">not infrastructure.</span>
+            </h1>
+            <p className="text-muted-foreground mt-5 max-w-md text-lg">
+              Prototype in an afternoon. Scale to production — on the same
+              platform.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <CopyPromptDialog
+                label="Copy starter prompt"
+                size="md"
+                className="rounded-full"
+              />
+              <Button asChild variant="outline" size="md" className="rounded-full">
+                <Link href="/sign-up">Start building — free</Link>
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* Agent output — full-height rail pinned to the right edge of the screen */}
-        <aside className="border-border/60 hidden w-[clamp(380px,30vw,460px)] shrink-0 border-l lg:block">
-          <div className="sticky top-16 h-[calc(100vh-4rem)] p-3">
-            <AgentPreview preview={preview} />
+        {/* Floating white storefront — pinned right */}
+        <div className="px-6 pb-10 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:py-8 lg:pl-0 lg:pr-12">
+          <div className="lg:sticky lg:top-20">
+            <div className="h-[540px] lg:h-[calc(100vh-7rem)]">
+              <StorefrontPanel config={config} preview={preview} active={active} />
+            </div>
           </div>
-        </aside>
+        </div>
+
+        {/* Config — left, scrolls; drives the panel spotlight */}
+        <div className="lg:col-start-1 lg:row-start-2">
+          <div className="divide-border/60 mx-auto w-full max-w-2xl divide-y px-6 pb-24 lg:px-12">
+            {CARDS.map((card) => (
+              <div
+                key={card.n}
+                data-section={card.id}
+                className="scroll-mt-24 py-10"
+              >
+                <div className="fig-label text-muted-foreground mb-3 flex items-center gap-2">
+                  <span className="bg-primary inline-block size-2" />
+                  <span className="text-primary">{card.n}</span>
+                  <span className="text-border">/</span>
+                  <span className="text-foreground">{card.label}</span>
+                </div>
+                <h3 className="font-display text-2xl font-bold tracking-tight">
+                  {card.title}
+                </h3>
+                <p className="text-muted-foreground mb-6 mt-2">{card.body}</p>
+                {card.render(config, update)}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   );

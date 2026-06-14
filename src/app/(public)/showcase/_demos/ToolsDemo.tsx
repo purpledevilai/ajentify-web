@@ -6,30 +6,29 @@ import { CodeBlock } from "@/components/marketing/code-block";
 import { WindowFrame } from "../_components/WindowFrame";
 import { Chat, type ChatItem } from "../_components/Chat";
 
-type Tool = { name: string; kind: "builtin" | "server" | "client"; desc?: string; code?: string };
+type Tool = {
+  name: string;
+  builtin: boolean;
+  runtime: "client" | "server";
+  inputs: { name: string; type: string }[];
+  code?: string;
+};
 
 const GROUPS: { label: string; tools: Tool[] }[] = [
   {
-    label: "Web Chat",
+    label: "Web Chat · built-in",
     tools: [
-      { name: "navigate", kind: "builtin", desc: "Open any page in your app" },
-      { name: "get_page_data", kind: "builtin", desc: "Read the current page" },
-      { name: "do_page_action", kind: "builtin", desc: "Click / act on the page" },
+      { name: "navigate", builtin: true, runtime: "client", inputs: [{ name: "path", type: "string" }] },
+      { name: "get_page_data", builtin: true, runtime: "client", inputs: [] },
+      { name: "do_page_action", builtin: true, runtime: "client", inputs: [{ name: "action", type: "string" }, { name: "target", type: "string" }] },
     ],
   },
   {
-    label: "Memory",
+    label: "Memory · built-in",
     tools: [
-      { name: "get_document_shape", kind: "builtin", desc: "Inspect a memory doc" },
-      { name: "read_path", kind: "builtin", desc: "Read a value by path" },
-      { name: "query", kind: "builtin", desc: "Query nested memory" },
-    ],
-  },
-  {
-    label: "Utility",
-    tools: [
-      { name: "scrape_page", kind: "builtin", desc: "Fetch & read a web page" },
-      { name: "view_docs", kind: "builtin", desc: "Read your product docs" },
+      { name: "get_document_shape", builtin: true, runtime: "server", inputs: [] },
+      { name: "read_path", builtin: true, runtime: "server", inputs: [{ name: "path", type: "string" }] },
+      { name: "query", builtin: true, runtime: "server", inputs: [{ name: "filter", type: "string" }] },
     ],
   },
   {
@@ -37,24 +36,33 @@ const GROUPS: { label: string; tools: Tool[] }[] = [
     tools: [
       {
         name: "process_return",
-        kind: "server",
+        builtin: false,
+        runtime: "server",
+        inputs: [{ name: "order", type: "string" }, { name: "item", type: "string" }],
         code: `def process_return(context, order: str, item: str):
     rma = returns.create(order=order, item=item)
     return {"rma": rma.id, "refund": rma.amount}`,
       },
       {
         name: "reset_password",
-        kind: "server",
+        builtin: false,
+        runtime: "server",
+        inputs: [{ name: "email", type: "string" }],
         code: `def reset_password(context, email: str):
     auth.send_reset_link(email)
     return {"sent": True}`,
       },
       {
-        name: "get_order_status",
-        kind: "server",
-        code: `def get_order_status(context, order: str):
-    o = db.orders.get(order)
-    return {"status": o.status, "eta": o.eta}`,
+        name: "add_to_cart",
+        builtin: false,
+        runtime: "client",
+        inputs: [{ name: "sku", type: "string" }, { name: "qty", type: "number" }],
+        code: `defineClientSideTools({
+  add_to_cart: async ({ sku, qty }) => {
+    await api.cart.add(sku, qty);
+    return { ok: true };
+  },
+});`,
       },
     ],
   },
@@ -62,23 +70,36 @@ const GROUPS: { label: string; tools: Tool[] }[] = [
 
 const SCENARIOS: Record<string, { tools: ChatItem[]; answer: string }> = {
   "Return my lamp": {
-    tools: [
-      { kind: "tool", name: "process_return", meta: "server", input: `{ "order": "#1024", "item": "Aurora Lamp" }`, output: `{ "rma": "RMA-88", "refund": "$149" }` },
-    ],
+    tools: [{ kind: "tool", name: "process_return", meta: "server", input: `{ "order": "#1024", "item": "Aurora Lamp" }`, output: `{ "rma": "RMA-88", "refund": "$149" }` }],
     answer: "Done — return RMA-88 created. Your $149 refund lands in 3–5 days.",
   },
   "Reset my password": {
     tools: [{ kind: "tool", name: "reset_password", meta: "server", input: `{ "email": "alex@acme.com" }`, output: `{ "sent": true }` }],
     answer: "I've emailed you a reset link — valid for 30 minutes.",
   },
-  "Where's order #1024?": {
-    tools: [{ kind: "tool", name: "get_order_status", meta: "server", input: `{ "order": "#1024" }`, output: `{ "status": "out_for_delivery" }` }],
-    answer: "It's out for delivery — should arrive today by 5pm.",
+  "Add 2 lamps to cart": {
+    tools: [{ kind: "tool", name: "add_to_cart", meta: "client", input: `{ "sku": "aurora", "qty": 2 }`, output: `{ "ok": true }` }],
+    answer: "Added 2 Aurora Lamps to your cart — ready when you are.",
   },
 };
 
+function RuntimeBadge({ runtime }: { runtime: "client" | "server" }) {
+  return (
+    <span
+      className={cn(
+        "rounded-md border px-1.5 py-0.5 font-mono text-[0.62rem]",
+        runtime === "client"
+          ? "border-primary/20 bg-primary/10 text-primary"
+          : "border-border bg-muted text-muted-foreground"
+      )}
+    >
+      {runtime}-side
+    </span>
+  );
+}
+
 export function ToolsDemo() {
-  const [selected, setSelected] = useState<Tool>(GROUPS[3].tools[0]);
+  const [selected, setSelected] = useState<Tool>(GROUPS[2].tools[0]);
   const [turns, setTurns] = useState<ChatItem[]>([
     { kind: "agent", text: "Hey! I'm Acme support. What can I help with today?" },
   ]);
@@ -103,22 +124,23 @@ export function ToolsDemo() {
       ref={stageRef}
       className="demo-desktop ring-border/40 relative h-full w-full overflow-hidden rounded-2xl ring-1"
     >
+      {/* Tool editor */}
       <WindowFrame
         draggable
         constraintsRef={stageRef}
         onFocus={() => setFront("a")}
-        url="support.acme.store"
+        title="tools · acme-store"
         className={cn(
-          "absolute left-[3%] top-[4%] h-[78%] w-[80%]",
+          "absolute left-[3%] top-[4%] h-[80%] w-[80%]",
           front === "a" ? "z-30" : "z-10"
         )}
       >
         <div className="flex min-h-0 flex-1">
-          {/* Tools sidebar */}
-          <div className="border-border/50 w-[40%] max-w-[13rem] shrink-0 space-y-3 overflow-y-auto border-r p-3">
+          {/* Sidebar */}
+          <div className="border-border/50 w-[38%] max-w-[14rem] shrink-0 space-y-3 overflow-y-auto border-r p-3">
             {GROUPS.map((g) => (
               <div key={g.label}>
-                <div className="text-muted-foreground mb-1 text-[0.58rem] font-medium uppercase tracking-wider">
+                <div className="text-muted-foreground mb-1 text-[0.56rem] font-medium uppercase tracking-wider">
                   {g.label}
                 </div>
                 <div className="space-y-0.5">
@@ -128,7 +150,7 @@ export function ToolsDemo() {
                       type="button"
                       onClick={() => setSelected(t)}
                       className={cn(
-                        "flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left font-mono text-[0.68rem] transition-colors",
+                        "flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left font-mono text-[0.7rem] transition-colors",
                         selected.name === t.name
                           ? "bg-primary/10 text-primary"
                           : "text-foreground/80 hover:bg-muted"
@@ -137,7 +159,7 @@ export function ToolsDemo() {
                       <span
                         className={cn(
                           "size-1.5 shrink-0 rounded-full",
-                          t.kind === "builtin" ? "bg-muted-foreground/50" : "bg-primary"
+                          t.runtime === "client" ? "bg-primary" : "bg-muted-foreground/50"
                         )}
                       />
                       {t.name}
@@ -147,47 +169,85 @@ export function ToolsDemo() {
               </div>
             ))}
           </div>
-          {/* Chat */}
-          <div className="min-w-0 flex-1">
-            <Chat
-              items={turns}
-              thinking={thinking}
-              prompts={Object.keys(SCENARIOS)}
-              onPrompt={run}
-              disabled={thinking}
-            />
+
+          {/* Selected tool */}
+          <div className="min-w-0 flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="text-foreground font-mono text-sm">
+                {selected.name}()
+              </code>
+              <RuntimeBadge runtime={selected.runtime} />
+              {selected.builtin && (
+                <span className="border-border bg-muted text-muted-foreground rounded-md border px-1.5 py-0.5 font-mono text-[0.62rem]">
+                  built-in
+                </span>
+              )}
+            </div>
+
+            <div>
+              <div className="text-muted-foreground mb-1.5 text-[0.6rem] font-medium uppercase tracking-wider">
+                inputs
+              </div>
+              {selected.inputs.length === 0 ? (
+                <span className="text-muted-foreground text-xs">no inputs</span>
+              ) : (
+                <div className="space-y-1.5">
+                  {selected.inputs.map((p) => (
+                    <div
+                      key={p.name}
+                      className="border-border/60 bg-muted/40 flex items-center justify-between rounded-md border px-2 py-1 font-mono text-[0.72rem]"
+                    >
+                      <span className="text-foreground/85">{p.name}</span>
+                      <span className="text-muted-foreground">{p.type}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selected.code ? (
+              <div>
+                <div className="text-muted-foreground mb-1.5 text-[0.6rem] font-medium uppercase tracking-wider">
+                  {selected.runtime === "client" ? "handler (JS)" : "code (Python)"}
+                </div>
+                <CodeBlock
+                  code={selected.code}
+                  filename={
+                    selected.runtime === "client"
+                      ? "clientSideTools.ts"
+                      : `${selected.name}.py`
+                  }
+                />
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                Built-in PageTool — provided by @ajentify/chat. Attach by name,
+                no code.
+              </p>
+            )}
           </div>
         </div>
       </WindowFrame>
 
-      {/* Code window for the selected tool */}
+      {/* Agent chat — its own window */}
       <WindowFrame
         draggable
         constraintsRef={stageRef}
         onFocus={() => setFront("b")}
-        title={
-          selected.kind === "builtin"
-            ? `${selected.name} · built-in`
-            : `${selected.name}.py`
-        }
+        url="support.acme.store"
         className={cn(
-          "absolute bottom-[4%] right-[3%] h-[54%] w-[50%]",
+          "absolute bottom-[4%] right-[3%] h-[60%] w-[44%]",
           front === "b" ? "z-30" : "z-10"
         )}
       >
-          {selected.code ? (
-            <CodeBlock code={selected.code} className="h-full rounded-none border-0" />
-          ) : (
-            <div className="flex h-full flex-col justify-center gap-2 p-4 text-center">
-              <div className="text-foreground font-mono text-sm">
-                {selected.name}()
-              </div>
-              <div className="text-muted-foreground text-xs">{selected.desc}</div>
-              <div className="text-muted-foreground/70 mt-1 text-[0.65rem]">
-                Built-in — provided by @ajentify/chat. Attach by name, no code.
-              </div>
-            </div>
-          )}
+        <Chat
+          items={turns}
+          header={{ name: "Acme Support", sub: "calling your tools" }}
+          thinking={thinking}
+          prompts={Object.keys(SCENARIOS)}
+          onPrompt={run}
+          disabled={thinking}
+        />
       </WindowFrame>
     </div>
   );

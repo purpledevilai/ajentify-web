@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Check } from "lucide-react";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Button } from "@/components/primitives/button";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
 import { StorefrontPanel } from "./StorefrontPanel";
@@ -146,6 +147,16 @@ export function AgentDemo() {
     return () => obs.disconnect();
   }, []);
 
+  const reduce = useReducedMotion();
+  const item: Variants = {
+    hidden: { opacity: 0, y: reduce ? 0 : 16 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
+  };
+  const heroStagger: Variants = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+  };
+
   return (
     <section className="stage-glow relative">
       <div
@@ -154,40 +165,64 @@ export function AgentDemo() {
       >
         {/* Hero — top-left */}
         <div className="lg:col-start-1 lg:row-start-1">
-          <div className="mx-auto w-full max-w-2xl px-6 pb-10 pt-20 md:pt-28 lg:px-12">
-            <div className="fig-label text-muted-foreground mb-5 flex items-center gap-2">
+          <motion.div
+            className="mx-auto w-full max-w-2xl px-6 pb-10 pt-20 md:pt-28 lg:px-12"
+            variants={heroStagger}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.div
+              variants={item}
+              className="fig-label text-muted-foreground mb-5 flex items-center gap-2"
+            >
               <span className="bg-primary inline-block size-2" />
               Fully-hosted agent infrastructure
-            </div>
-            <h1 className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl">
+            </motion.div>
+            <motion.h1
+              variants={item}
+              className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl"
+            >
               Build AI agents,
               <br />
               <span className="text-gradient-brand">not infrastructure.</span>
-            </h1>
-            <p className="text-muted-foreground mt-5 max-w-md text-lg">
+            </motion.h1>
+            <motion.p
+              variants={item}
+              className="text-muted-foreground mt-5 max-w-md text-lg"
+            >
               Prototype in an afternoon. Scale to production — on the same
               platform.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            </motion.p>
+            <motion.div variants={item} className="mt-7 flex flex-wrap gap-3">
               <CopyPromptDialog
                 label="Copy starter prompt"
                 size="md"
-                className="rounded-full"
+                className="rounded-full transition-transform hover:-translate-y-0.5"
               />
-              <Button asChild variant="outline" size="md" className="rounded-full">
+              <Button
+                asChild
+                variant="outline"
+                size="md"
+                className="rounded-full transition-transform hover:-translate-y-0.5"
+              >
                 <Link href="/sign-up">Start building — free</Link>
               </Button>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
 
         {/* Floating white storefront — top-aligned with the first step, then sticky */}
         <div className="px-6 pb-10 lg:col-start-2 lg:row-start-2 lg:pl-0 lg:pr-12 lg:pt-20">
           <div className="lg:sticky lg:top-24">
             {/* Never taller than it is wide; also capped to the viewport. */}
-            <div className="mx-auto aspect-square max-h-[560px] w-full lg:max-h-[calc(100vh-8rem)]">
+            <motion.div
+              className="mx-auto aspect-square max-h-[560px] w-full lg:max-h-[calc(100vh-8rem)]"
+              initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+            >
               <StorefrontPanel config={config} preview={preview} active={active} />
-            </div>
+            </motion.div>
           </div>
         </div>
 
@@ -195,10 +230,14 @@ export function AgentDemo() {
         <div className="lg:col-start-1 lg:row-start-2">
           <div className="divide-border/60 mx-auto w-full max-w-2xl divide-y px-6 pb-28 lg:px-12">
             {CARDS.map((card) => (
-              <div
+              <motion.div
                 key={card.n}
                 data-section={card.id}
                 className="scroll-mt-24 py-16 first:pt-20"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                variants={item}
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="fig-label text-muted-foreground flex items-center gap-2">
@@ -222,7 +261,7 @@ export function AgentDemo() {
                 </h3>
                 <p className="text-muted-foreground mb-6 mt-2">{card.body}</p>
                 {card.render(config, update)}
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

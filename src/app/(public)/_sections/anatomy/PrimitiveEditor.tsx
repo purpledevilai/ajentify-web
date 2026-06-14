@@ -119,10 +119,10 @@ export function AgentEditor({ config, update }: EditorProps) {
             type="button"
             onClick={() => update((c) => ({ ...c, model: m.id }))}
             className={cn(
-              "rounded-md border p-3 text-left transition-colors",
+              "rounded-md border p-3 text-left transition-all",
               config.model === m.id
                 ? "border-primary bg-primary/5"
-                : "border-border/60 hover:bg-muted"
+                : "border-border/60 hover:bg-muted hover:-translate-y-0.5"
             )}
           >
             <div className="text-sm font-semibold">{m.label}</div>

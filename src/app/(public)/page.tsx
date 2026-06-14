@@ -1,20 +1,16 @@
 import Link from "next/link";
 import { Button } from "@/components/primitives/button";
 import { CopyPromptDialog } from "@/components/marketing/copy-prompt-dialog";
-import { HeroSection } from "./_sections/HeroSection";
-import { ProofStrip } from "./_sections/ProofStrip";
-import { HowItComesTogether } from "./_sections/HowItComesTogether";
+import { AgentDemo } from "./_sections/AgentDemo";
 
 export default function LandingPage() {
   return (
     <>
-      <HeroSection />
-      <ProofStrip />
-      <HowItComesTogether />
+      <AgentDemo />
 
       {/* Bottom CTA */}
-      <section className="border-t border-border/50">
-        <div className="container mx-auto max-w-5xl px-6 py-24 text-center md:py-32">
+      <section>
+        <div className="container mx-auto max-w-5xl px-6 py-24 text-center md:py-28">
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">
             Prototype today. Scale when you&apos;re ready.
           </h2>

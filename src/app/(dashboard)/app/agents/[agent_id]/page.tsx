@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
   Plus,
   Trash2,
   Wrench,
@@ -286,6 +287,13 @@ export default function AgentBuilderPage() {
           description: "Replace the list of prompt argument names.",
           argsSchema: z.toJSONSchema(PromptArgNamesArgs),
         },
+        set_voice_id: {
+          description:
+            "Set the ElevenLabs voice ID for text-to-speech. Pass null to clear.",
+          argsSchema: z.toJSONSchema(
+            z.object({ value: z.string().nullable() }),
+          ),
+        },
       },
     }),
     [agent_id, notFound, hydrating, form, toolsById, models, isDirty, PromptArgNamesArgs],
@@ -330,6 +338,11 @@ export default function AgentBuilderPage() {
         case "set_prompt_arg_names": {
           const parsed = PromptArgNamesArgs.parse(args);
           setField("prompt_arg_names", parsed.names);
+          return { ok: true };
+        }
+        case "set_voice_id": {
+          const val = (args as { value: unknown }).value;
+          setField("voice_id", val ? String(val) : null);
           return { ok: true };
         }
         default:
@@ -413,6 +426,29 @@ export default function AgentBuilderPage() {
           <CopyButton value={agent_id} label="Copy agent ID" />
         </div>
       </div>
+
+      <BuilderSection title="Model" description="LLM that powers this agent.">
+        <Select
+          value={form.model_id}
+          onValueChange={(v) =>
+            setField("model_id", typeof v === "string" ? v : null)
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a model" />
+          </SelectTrigger>
+          <SelectContent>
+            {models.map((m) => (
+              <SelectItem key={m.model} value={m.model}>
+                {m.model}{" "}
+                <span className="text-muted-foreground text-xs">
+                  ({m.model_provider})
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </BuilderSection>
 
       <BuilderSection
         title="System prompt"
@@ -645,29 +681,6 @@ export default function AgentBuilderPage() {
         onChangeAttached={(ids) => setField("tools", ids)}
       />
 
-      <BuilderSection title="Model" description="LLM that powers this agent.">
-        <Select
-          value={form.model_id}
-          onValueChange={(v) =>
-            setField("model_id", typeof v === "string" ? v : null)
-          }
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a model" />
-          </SelectTrigger>
-          <SelectContent>
-            {models.map((m) => (
-              <SelectItem key={m.model} value={m.model}>
-                {m.model}{" "}
-                <span className="text-muted-foreground text-xs">
-                  ({m.model_provider})
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </BuilderSection>
-
       <BuilderSection title="Configuration">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -723,6 +736,30 @@ export default function AgentBuilderPage() {
             />
           </div>
         )}
+        <div className="space-y-1.5">
+          <Label htmlFor="voice-id">Voice ID</Label>
+          <Input
+            id="voice-id"
+            value={form.voice_id ?? ""}
+            onChange={(e) =>
+              setField("voice_id", e.target.value || null)
+            }
+            placeholder="e.g. 21m00Tcm4TlvDq8ikWAM"
+          />
+          <p className="text-muted-foreground text-xs">
+            Browse the{" "}
+            <a
+              href="https://elevenlabs.io/app/voice-library"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground underline underline-offset-2 hover:text-foreground/80 inline-flex items-center gap-0.5"
+            >
+              ElevenLabs Voice Library
+              <ExternalLink className="inline size-3" />
+            </a>{" "}
+            to find a voice, then copy its ID and paste it here.
+          </p>
+        </div>
       </BuilderSection>
 
       <BuilderSection title="Danger zone" className="border-destructive/40">

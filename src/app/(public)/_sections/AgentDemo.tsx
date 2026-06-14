@@ -181,8 +181,8 @@ export function AgentDemo() {
           </div>
         </div>
 
-        {/* Floating white storefront — pinned right */}
-        <div className="px-6 pb-10 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:py-8 lg:pl-0 lg:pr-12">
+        {/* Floating white storefront — top-aligned with the first step, then sticky */}
+        <div className="px-6 pb-10 lg:col-start-2 lg:row-start-2 lg:pl-0 lg:pr-12 lg:pt-12">
           <div className="lg:sticky lg:top-24">
             {/* Never taller than it is wide; also capped to the viewport. */}
             <div className="mx-auto aspect-square max-h-[560px] w-full lg:max-h-[calc(100vh-8rem)]">
@@ -198,7 +198,7 @@ export function AgentDemo() {
               <div
                 key={card.n}
                 data-section={card.id}
-                className="scroll-mt-24 py-16 first:pt-10"
+                className="scroll-mt-24 py-16 first:pt-12"
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="fig-label text-muted-foreground flex items-center gap-2">

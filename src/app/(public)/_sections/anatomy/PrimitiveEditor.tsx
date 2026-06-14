@@ -112,7 +112,7 @@ export function AgentEditor({ config, update }: EditorProps) {
         className="mb-5"
       />
       <FieldLabel>Model</FieldLabel>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {MODELS.map((m) => (
           <button
             key={m.id}

@@ -272,7 +272,7 @@ function DockedChat({
   active: string;
 }) {
   return (
-    <div className="absolute bottom-5 right-5 flex max-h-[66%] w-[18.5rem] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_18px_50px_-12px_rgba(30,41,90,0.3)]">
+    <div className="absolute bottom-4 right-4 flex max-h-[66%] w-[13.5rem] flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-[0_18px_50px_-12px_rgba(30,41,90,0.3)] sm:bottom-5 sm:right-5 sm:w-[18.5rem]">
       {/* header */}
       <div
         className={cn(

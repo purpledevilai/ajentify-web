@@ -180,7 +180,7 @@ export function AgentDemo() {
             </motion.div>
             <motion.h1
               variants={item}
-              className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl"
+              className="font-display text-4xl font-extrabold leading-[1.02] tracking-tight md:text-5xl lg:text-6xl"
             >
               Build AI agents,
               <br />
@@ -216,7 +216,7 @@ export function AgentDemo() {
           <div className="lg:sticky lg:top-24">
             {/* Never taller than it is wide; also capped to the viewport. */}
             <motion.div
-              className="mx-auto aspect-square max-h-[560px] w-full lg:max-h-[calc(100vh-8rem)]"
+              className="mx-auto aspect-[3/4] w-full max-h-[620px] sm:aspect-square sm:max-h-[560px] lg:max-h-[calc(100vh-8rem)]"
               initial={{ opacity: 0, y: reduce ? 0 : 16, scale: reduce ? 1 : 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}

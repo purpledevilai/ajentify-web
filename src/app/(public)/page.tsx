@@ -9,7 +9,7 @@ export default function LandingPage() {
       <AgentDemo />
 
       {/* Bottom CTA */}
-      <section>
+      <section className="border-border/60 border-t">
         <div className="container mx-auto max-w-5xl px-6 py-24 text-center md:py-28">
           <h2 className="font-display text-3xl font-bold tracking-tight md:text-5xl">
             Prototype today. Scale when you&apos;re ready.

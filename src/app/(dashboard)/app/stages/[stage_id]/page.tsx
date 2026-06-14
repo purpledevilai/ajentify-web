@@ -679,7 +679,7 @@ export default function StageDetailPage() {
                 logical: d.logical_name ?? null,
                 name: d.name,
                 description: null,
-                href: undefined,
+                href: `/app/documents/${d.document_id}`,
               }))}
               onAddExisting={() => setAddKind("documents")}
               hasUnattached={unattachedDocs.length > 0}

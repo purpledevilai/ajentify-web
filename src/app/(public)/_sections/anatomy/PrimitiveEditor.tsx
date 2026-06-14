@@ -159,46 +159,60 @@ export function PromptEditor({ config, update }: EditorProps) {
 export function ToolsEditor({ config, update }: EditorProps) {
   return (
     <div className="space-y-3">
-      {config.tools.map((tool) => (
-        <div
-          key={tool.id}
-          className={cn(
-            "overflow-hidden rounded-md border border-border/60 bg-card transition-opacity",
-            !tool.enabled && "opacity-55"
-          )}
-        >
-          <div className="flex items-center justify-between gap-3 p-3.5">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 font-mono text-sm">
-                {tool.name}
-                <Chip tone={tool.clientSide ? "primary" : "muted"}>
-                  {tool.clientSide ? "client-side" : "server"}
-                </Chip>
+      {config.tools.map((tool) => {
+        const badge =
+          tool.kind === "builtin"
+            ? "built-in"
+            : tool.kind === "client"
+              ? "client-side"
+              : "server";
+        return (
+          <div
+            key={tool.id}
+            className={cn(
+              "overflow-hidden rounded-md border border-border/60 bg-card transition-opacity",
+              !tool.enabled && "opacity-55"
+            )}
+          >
+            <div className="flex items-center justify-between gap-3 p-3.5">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 font-mono text-sm">
+                  {tool.name}
+                  <Chip tone={tool.kind === "server" ? "muted" : "primary"}>
+                    {badge}
+                  </Chip>
+                </div>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {tool.description}
+                </p>
               </div>
-              <p className="text-muted-foreground mt-1 text-xs">
-                {tool.description}
-              </p>
+              <Toggle
+                checked={tool.enabled}
+                onChange={(v) =>
+                  update((c) => ({
+                    ...c,
+                    tools: c.tools.map((t) =>
+                      t.id === tool.id ? { ...t, enabled: v } : t
+                    ),
+                  }))
+                }
+                aria-label={`Enable ${tool.name}`}
+              />
             </div>
-            <Toggle
-              checked={tool.enabled}
-              onChange={(v) =>
-                update((c) => ({
-                  ...c,
-                  tools: c.tools.map((t) =>
-                    t.id === tool.id ? { ...t, enabled: v } : t
-                  ),
-                }))
-              }
-              aria-label={`Enable ${tool.name}`}
-            />
+            {tool.code && (
+              <CodeBlock
+                code={tool.code}
+                filename={
+                  tool.language === "python"
+                    ? `${tool.name}.py`
+                    : "clientSideTools.ts"
+                }
+                className="rounded-none border-x-0 border-b-0"
+              />
+            )}
           </div>
-          <CodeBlock
-            code={tool.code}
-            filename={`${tool.name}.${tool.language === "python" ? "py" : "js"}`}
-            className="rounded-none border-x-0 border-b-0"
-          />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -220,13 +234,27 @@ export function SREEditor({ config, update }: EditorProps) {
           }
           title={`${sre.name}()`}
         >
-          <p className="text-muted-foreground mb-2 text-xs">{sre.description}</p>
+          <p className="text-muted-foreground mb-2.5 text-xs">
+            {sre.description}
+          </p>
+          <div className="text-muted-foreground mb-1 font-mono text-[0.65rem] uppercase tracking-wider">
+            prompt_template
+          </div>
+          <pre className="text-foreground/75 mb-2.5 overflow-x-auto rounded bg-background/60 p-2 font-mono text-[0.72rem] leading-relaxed">
+            {sre.promptTemplate}
+          </pre>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-muted-foreground text-[0.7rem]">in:</span>
+            <span className="text-muted-foreground text-[0.7rem]">
+              variable_names:
+            </span>
             {sre.variables.map((v) => (
               <Chip key={v}>{v}</Chip>
             ))}
-            <span className="text-muted-foreground ml-1 text-[0.7rem]">out:</span>
+          </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="text-muted-foreground text-[0.7rem]">
+              output schema:
+            </span>
             {sre.outputFields.map((f) => (
               <Chip key={f.name} tone="accent">
                 {f.name}: {f.type}
@@ -377,7 +405,7 @@ export function DeployView({ config }: { config: AgentConfig }) {
     <>
       <CodeBlock
         code={buildManifest(config)}
-        filename="ajentify.manifest.json"
+        filename="ajentify.json"
         className="mb-4"
       />
       <div className="overflow-hidden rounded-md border border-border/60 bg-zinc-950 font-mono text-xs">

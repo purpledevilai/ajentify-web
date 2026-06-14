@@ -12,8 +12,11 @@ complex production apps (10xAgent was built this way).
 
 - **Agent**: a name, a system prompt (plain text with `{{prompt_args}}`), a
   model, and a set of tools. Model-agnostic.
-- **Tools**: functions the agent can call. Server-side, or client-side to drive
-  your app's UI (navigate, read page data, fill forms, control state).
+- **Tools**: functions the agent can call. Server-side tools run sandboxed
+  Python `code` on Ajentify; client-side tools have no code — a frontend handler
+  (wired via `defineClientSideTools`) runs in your app and returns to the agent.
+  `navigate`, `get_page_data` and `do_page_action` are reserved built-in
+  PageTools provided by `@ajentify/chat`.
 - **SRE (Structured Response Endpoint)**: a typed, reusable LLM call — a prompt
   template + named variables + a JSON output schema. Use for judges,
   extractors, classifiers.
@@ -28,19 +31,19 @@ complex production apps (10xAgent was built this way).
 - **Voice**: the same agent definition can power a WebRTC voice experience
   (speech-to-text, LLM, ElevenLabs text-to-speech) with full tool execution.
 - **Manifest + CLI**: your whole agent is declarative config in
-  `ajentify.manifest.json`. Deploy with `npx ajentify deploy --stage <stage>`,
+  `ajentify.json`. Deploy with `npx ajentify deploy --stage <stage>`,
   which diffs and applies changes (infra-as-code for agents).
 
 ## Getting started
 
 1. Install the CLI: `npm i -D @ajentify/cli`
-2. Define an agent, a tool, and an SRE in `ajentify.manifest.json`.
+2. Define an agent, a tool, and an SRE in `ajentify.json`.
 3. Deploy: `npx ajentify deploy --stage dev`
 4. Embed in your app: the `@ajentify/chat` SDK (`AjentifyProvider` + `ChatPanel`,
    plus `useDoPageAction` / `useGetPageData` hooks for client-side tools).
 
 ## Links
 
-- Docs: https://ajentify.com/docs
+- Docs: https://api.ajentify.com/docs
 - Frontend SDK: `@ajentify/chat`
 - CLI: `@ajentify/cli`

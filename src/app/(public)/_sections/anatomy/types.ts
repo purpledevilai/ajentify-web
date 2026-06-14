@@ -13,18 +13,25 @@ export interface ModelMeta {
   id: ModelId;
   label: string;
   vendor: string;
+  /** The real model_id string sent to the API. */
+  modelId: string;
 }
 
 export interface ToolConfig {
   id: string;
   name: string;
   description: string;
-  /** Client-side tools run in the browser and can drive your app's UI. */
-  clientSide: boolean;
+  /**
+   * server  — Python `code` runs sandboxed on Ajentify.
+   * client  — no server code; a frontend handler (defineClientSideTools) runs
+   *           in your app and its return value is sent back to the agent.
+   * builtin — a reserved PageTool (navigate / get_page_data / do_page_action)
+   *           provided by @ajentify/chat; attach by name, no code.
+   */
+  kind: "server" | "client" | "builtin";
   enabled: boolean;
-  language: "python" | "javascript";
-  /** The actual code that runs when the agent calls this tool. */
-  code: string;
+  language?: "python" | "javascript";
+  code?: string;
 }
 
 export interface SREField {
@@ -37,7 +44,11 @@ export interface SREConfig {
   id: string;
   name: string;
   description: string;
+  /** Prompt template containing the variable names, replaced at runtime. */
+  promptTemplate: string;
+  /** Variable names that appear literally in the template. */
   variables: string[];
+  /** The output schema (a parameter definition / JSON schema). */
   outputFields: SREField[];
   enabled: boolean;
 }

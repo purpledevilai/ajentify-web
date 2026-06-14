@@ -13,16 +13,16 @@ import {
 import { cn } from "@/lib/utils";
 
 export const STARTER_PROMPT = `I'm building an AI agent with Ajentify — a fully-hosted agent platform.
-Docs: https://ajentify.com/docs   ·   LLM reference: https://ajentify.com/llms.txt
+Docs: https://api.ajentify.com/docs
+Web-chat quickstart: https://api.ajentify.com/docs/web-chat-quickstart
 
 Set me up end to end:
 1. Install the CLI:  npm i -D @ajentify/cli
-2. Create ajentify.manifest.json with:
-   - one agent (name, system prompt, model)
-   - one tool the agent can call
-   - one SRE (a typed LLM call: prompt + variables + JSON output schema)
+2. Create ajentify.json with one agent (name, prompt, model_id), one server
+   tool (Python), and one SRE (prompt_template + variable_names + output schema).
 3. Deploy to a dev stage:  npx ajentify deploy --stage dev
-4. Embed the @ajentify/chat widget in my app with a client-side "navigate" tool
+4. Embed @ajentify/chat in my app: <AjentifyProvider> + <ChatPanel>, with
+   client-side tool handlers wired via defineClientSideTools.
 
 My app idea: <describe it here>
 

@@ -47,7 +47,7 @@ const CARDS: CardDef[] = [
     n: "02",
     label: "Tools",
     title: "Give it tools that drive your app",
-    body: "Tools are just functions. Server-side tools run Python; client-side tools run JavaScript in the browser and post the result back to Ajentify for the agent to use.",
+    body: "Tools are just functions. Server-side tools run sandboxed Python; client-side tools have no server code — a handler in your app runs and returns to the agent. navigate, get_page_data and do_page_action are built-in PageTools.",
     render: (config, update) => <ToolsEditor config={config} update={update} />,
   },
   {
@@ -148,36 +148,23 @@ export function AgentDemo() {
               <AgentPreview preview={preview} />
             </div>
 
-            {/* Stacking control cards */}
-            <div className="relative">
-              {CARDS.map((card, i) => (
-                <div
-                  key={card.n}
-                  className="mb-5 lg:sticky"
-                  style={{ top: `calc(5.5rem + ${i * 1.35}rem)` }}
-                >
-                  <div className="bg-card border-border/70 overflow-hidden rounded-xl border shadow-[0_-2px_30px_-14px_rgba(0,0,0,0.4)]">
-                    <div className="border-border/60 bg-card flex items-center justify-between border-b px-5 py-2.5">
-                      <div className="fig-label flex items-center gap-2">
-                        <span className="bg-primary inline-block size-2" />
-                        <span className="text-primary">{card.n}</span>
-                        <span className="text-border">/</span>
-                        <span className="text-foreground">{card.label}</span>
-                      </div>
-                      <span className="fig-label text-muted-foreground">
-                        {card.n} / 06
-                      </span>
-                    </div>
-                    <div className="p-5 md:p-6">
-                      <h3 className="font-display text-xl font-bold tracking-tight">
-                        {card.title}
-                      </h3>
-                      <p className="text-muted-foreground mb-5 mt-2 text-sm">
-                        {card.body}
-                      </p>
-                      {card.render(config, update)}
-                    </div>
+            {/* Inline control sections — no cards, just hairline dividers */}
+            <div className="divide-border/60 divide-y">
+              {CARDS.map((card) => (
+                <div key={card.n} className="py-10 first:pt-2">
+                  <div className="fig-label text-muted-foreground mb-3 flex items-center gap-2">
+                    <span className="bg-primary inline-block size-2" />
+                    <span className="text-primary">{card.n}</span>
+                    <span className="text-border">/</span>
+                    <span className="text-foreground">{card.label}</span>
                   </div>
+                  <h3 className="font-display text-2xl font-bold tracking-tight">
+                    {card.title}
+                  </h3>
+                  <p className="text-muted-foreground mb-6 mt-2 max-w-xl">
+                    {card.body}
+                  </p>
+                  {card.render(config, update)}
                 </div>
               ))}
             </div>

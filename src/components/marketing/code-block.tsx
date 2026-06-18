@@ -63,9 +63,17 @@ interface CodeBlockProps {
   language?: string;
   filename?: string;
   className?: string;
+  /** Frosted-glass variant for use inside translucent windows. */
+  transparent?: boolean;
 }
 
-export function CodeBlock({ code, language, filename, className }: CodeBlockProps) {
+export function CodeBlock({
+  code,
+  language,
+  filename,
+  className,
+  transparent,
+}: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   const lines = code.trimEnd().split("\n");
@@ -80,7 +88,12 @@ export function CodeBlock({ code, language, filename, className }: CodeBlockProp
   return (
     <div className={cn("group relative overflow-hidden rounded-lg border border-white/10", className)}>
       {(filename || language) && (
-        <div className="flex items-center justify-between border-b border-white/10 bg-zinc-900 px-4 py-2 text-xs text-zinc-400">
+        <div
+          className={cn(
+            "flex items-center justify-between border-b border-white/10 px-4 py-2 text-xs text-zinc-400",
+            transparent ? "bg-white/5" : "bg-zinc-900"
+          )}
+        >
           <span>{filename ?? language}</span>
           <button
             type="button"
@@ -92,7 +105,12 @@ export function CodeBlock({ code, language, filename, className }: CodeBlockProp
           </button>
         </div>
       )}
-      <pre className="overflow-x-auto bg-zinc-950 p-4 text-sm leading-relaxed">
+      <pre
+        className={cn(
+          "overflow-x-auto p-4 text-sm leading-relaxed",
+          transparent ? "bg-zinc-950/55 backdrop-blur-xl" : "bg-zinc-950"
+        )}
+      >
         <code>
           {tokenizedLines.map((tokens, i) => (
             <span key={i}>

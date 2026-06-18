@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { fontDisplay, fontSans } from "@/lib/fonts";
+import {
+  fontDisplay,
+  fontSans,
+  fontMarketingDisplay,
+  fontMono,
+} from "@/lib/fonts";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -16,7 +21,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${fontDisplay.variable} ${fontSans.variable} h-full antialiased`}
+      className={`${fontDisplay.variable} ${fontSans.variable} ${fontMarketingDisplay.variable} ${fontMono.variable} h-full antialiased`}
     >
       <body className="bg-background text-foreground font-sans min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>

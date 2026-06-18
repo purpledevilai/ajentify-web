@@ -166,3 +166,153 @@
     letter-spacing: -0.01em;
   }
 }
+
+/* ================================================================
+   MARKETING THEME — "Engineering instrument on technical paper"
+   Scoped to `.marketing` (the public site). The dashboard, which
+   shares this stylesheet, is intentionally left untouched.
+   ================================================================ */
+.marketing {
+  /* Brand blue → purple on a cool, intentional ground */
+  --background: oklch(0.985 0.004 265);
+  --foreground: oklch(0.16 0.014 262);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.014 262);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.014 262);
+  --primary: oklch(0.55 0.22 262); /* brand blue */
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.965 0.006 265);
+  --secondary-foreground: oklch(0.16 0.014 262);
+  --muted: oklch(0.965 0.006 265);
+  --muted-foreground: oklch(0.45 0.02 262);
+  --accent: oklch(0.55 0.24 288); /* brand purple */
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.9 0.008 265);
+  --input: oklch(0.9 0.008 265);
+  --ring: oklch(0.55 0.22 262);
+  --radius: 0.625rem; /* soft buttons/cards; structure stays hard-edged */
+
+  --font-display: var(--font-marketing-display);
+  --grid-line: oklch(0.5 0.06 268 / 0.06);
+
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.dark .marketing,
+.marketing.dark {
+  --background: oklch(0.21 0.014 264); /* soft charcoal, not near-black */
+  --foreground: oklch(0.97 0.005 265);
+  --card: oklch(0.255 0.016 264);
+  --card-foreground: oklch(0.97 0.005 265);
+  --popover: oklch(0.255 0.016 264);
+  --popover-foreground: oklch(0.97 0.005 265);
+  --primary: oklch(0.68 0.2 264);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.29 0.016 264);
+  --secondary-foreground: oklch(0.97 0.005 265);
+  --muted: oklch(0.29 0.016 264);
+  --muted-foreground: oklch(0.72 0.02 264);
+  --accent: oklch(0.66 0.23 290);
+  --accent-foreground: oklch(0.98 0 0);
+  --border: oklch(0.32 0.016 264);
+  --input: oklch(0.32 0.016 264);
+  --ring: oklch(0.68 0.2 264);
+  --grid-line: oklch(0.7 0.09 272 / 0.08);
+}
+
+@layer base {
+  .marketing h1,
+  .marketing h2 {
+    letter-spacing: -0.035em;
+  }
+}
+
+/* Soft light atmosphere — brand glows on a clean canvas, no pattern. */
+.stage-glow {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      46rem 32rem at 84% -10%,
+      color-mix(in oklab, var(--primary) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      40rem 30rem at 2% 0%,
+      color-mix(in oklab, var(--accent) 8%, transparent),
+      transparent 64%
+    );
+}
+
+/* Soft "desktop" backdrop the demo windows float on (drag surface). */
+.demo-desktop {
+  background-color: var(--muted);
+  background-image:
+    radial-gradient(
+      120% 120% at 0% 0%,
+      color-mix(in oklab, var(--primary) 30%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      120% 120% at 100% 100%,
+      color-mix(in oklab, var(--accent) 26%, transparent),
+      transparent 58%
+    );
+}
+
+@layer utilities {
+  /* Drafting-sheet grid */
+  .marketing-grid {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Subtle paper grain, works on light + dark */
+  .marketing-grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Mono section/figure label */
+  .fig-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  /* Drafting crosshair tick (corner mark) */
+  .draft-ticks {
+    position: relative;
+  }
+  .draft-ticks::before,
+  .draft-ticks::after {
+    content: "";
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-color: var(--primary);
+    border-style: solid;
+    opacity: 0.7;
+  }
+  .draft-ticks::before {
+    top: -1px;
+    left: -1px;
+    border-width: 1px 0 0 1px;
+  }
+  .draft-ticks::after {
+    bottom: -1px;
+    right: -1px;
+    border-width: 0 1px 1px 0;
+  }
+}

@@ -229,6 +229,14 @@ export default function AgentBuilderPage() {
     () => z.object({ names: z.array(z.string()) }),
     [],
   );
+  const ToolIdsArgs = useMemo(
+    () => z.object({ tool_ids: z.array(z.string()) }),
+    [],
+  );
+  const SingleToolIdArgs = useMemo(
+    () => z.object({ tool_id: z.string() }),
+    [],
+  );
 
   useGetPageData(
     () => ({
@@ -249,8 +257,14 @@ export default function AgentBuilderPage() {
           model: m.model,
           model_provider: m.model_provider,
         })),
+        available_tools: [...toolsById.entries()].map(([id, t]) => ({
+          tool_id: id,
+          name: t.name,
+          source: t.source,
+          description: t.description,
+        })),
         note:
-          "You can set any field via the matching set_* action; saving and deleting are user actions. To add or remove tools, point the user at the '+ Add tool' dialog.",
+          "You can set any field via the matching set_* action; saving and deleting are user actions. Use add_tool / remove_tool to attach or detach tools by tool_id, or set_tools to replace the full list.",
       },
       actions: {
         set_name: {
@@ -294,9 +308,24 @@ export default function AgentBuilderPage() {
             z.object({ value: z.string().nullable() }),
           ),
         },
+        set_tools: {
+          description:
+            "Replace the entire list of attached tool IDs. Use available_tools to find valid tool_id values.",
+          argsSchema: z.toJSONSchema(ToolIdsArgs),
+        },
+        add_tool: {
+          description:
+            "Attach a single tool by tool_id. No-op if already attached. Use available_tools to find valid tool_id values.",
+          argsSchema: z.toJSONSchema(SingleToolIdArgs),
+        },
+        remove_tool: {
+          description:
+            "Detach a single tool by tool_id. No-op if not currently attached.",
+          argsSchema: z.toJSONSchema(SingleToolIdArgs),
+        },
       },
     }),
-    [agent_id, notFound, hydrating, form, toolsById, models, isDirty, PromptArgNamesArgs],
+    [agent_id, notFound, hydrating, form, toolsById, models, isDirty, PromptArgNamesArgs, ToolIdsArgs, SingleToolIdArgs],
   );
 
   useDoPageAction(
@@ -345,11 +374,31 @@ export default function AgentBuilderPage() {
           setField("voice_id", val ? String(val) : null);
           return { ok: true };
         }
+        case "set_tools": {
+          const parsed = ToolIdsArgs.parse(args);
+          setField("tools", parsed.tool_ids);
+          return { ok: true };
+        }
+        case "add_tool": {
+          const parsed = SingleToolIdArgs.parse(args);
+          if (!form.tools.includes(parsed.tool_id)) {
+            setField("tools", [...form.tools, parsed.tool_id]);
+          }
+          return { ok: true };
+        }
+        case "remove_tool": {
+          const parsed = SingleToolIdArgs.parse(args);
+          setField(
+            "tools",
+            form.tools.filter((id) => id !== parsed.tool_id),
+          );
+          return { ok: true };
+        }
         default:
           return { ok: false, error: `unknown action: ${key}` };
       }
     },
-    [form, setField, PromptArgNamesArgs],
+    [form, setField, PromptArgNamesArgs, ToolIdsArgs, SingleToolIdArgs],
   );
 
   if (notFound) {

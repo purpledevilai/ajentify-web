@@ -1,19 +1,17 @@
 import Link from "next/link";
 import { Button } from "@/components/primitives/button";
 import { HeroSection } from "./_sections/HeroSection";
-import { EmbeddedChatSection } from "./_sections/EmbeddedChatSection";
-import { ContextWindowSection } from "./_sections/ContextWindowSection";
-import { TestingFrameworkSection } from "./_sections/TestingFrameworkSection";
-import { VoiceSection } from "./_sections/VoiceSection";
+import { AgentPrimitiveSection } from "./_sections/AgentPrimitiveSection";
+import { ToolsPrimitiveSection } from "./_sections/ToolsPrimitiveSection";
+import { DeploySection } from "./_sections/DeploySection";
 
 export default function LandingPage() {
   return (
     <>
       <HeroSection />
-      <EmbeddedChatSection />
-      <ContextWindowSection />
-      <TestingFrameworkSection />
-      <VoiceSection />
+      <AgentPrimitiveSection />
+      <ToolsPrimitiveSection />
+      <DeploySection />
 
       {/* Bottom CTA */}
       <section className="border-t border-border/50">

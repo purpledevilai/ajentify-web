@@ -12,7 +12,7 @@ const RULES: [string, RegExp][] = [
   ["string", /^"(?:[^"\\]|\\.)*"/],
   ["string", /^'(?:[^'\\]|\\.)*'/],
   ["string", /^`(?:[^`\\]|\\.)*`/],
-  ["keyword", /^(?:import|from|export|const|let|var|function|async|await|return|def|class|if|else|type)\b/],
+  ["keyword", /^(?:import|from|export|const|let|var|function|async|await|return|def|class|if|else|type|switch|case|break|new|throw|try|catch)\b/],
   ["jsx-tag", /^<\/?[A-Z]\w*/],
   ["jsx-close", /^\s*\/>/],
   ["builtin", /^(?:true|false|null|undefined|None|True|False)\b/],

@@ -223,7 +223,14 @@ export default function ContextsPage() {
             }
           >
             <SelectTrigger className="h-8 w-full" disabled={agentsLoading}>
-              <SelectValue placeholder="All agents" />
+              <SelectValue placeholder="All agents">
+                {(value) =>
+                  !value || value === ALL_AGENTS
+                    ? "All agents"
+                    : (agentNameById.get(value as string) ??
+                      (value as string))
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={ALL_AGENTS}>All agents</SelectItem>

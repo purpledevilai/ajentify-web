@@ -14,6 +14,7 @@ type FormState = {
   uses_prompt_args: boolean;
   prompt_arg_names: string[];
   voice_id: string | null;
+  realtime_voice: string | null;
   initialize_tool_id: string | null;
   model_id: string | null;
 };
@@ -46,6 +47,7 @@ function fromAgent(a: ApiAgent): FormState {
     uses_prompt_args: a.uses_prompt_args ?? false,
     prompt_arg_names: a.prompt_arg_names ?? [],
     voice_id: a.voice_id ?? null,
+    realtime_voice: a.realtime_voice ?? null,
     initialize_tool_id: a.initialize_tool_id ?? null,
     model_id: a.model_id ?? null,
   };

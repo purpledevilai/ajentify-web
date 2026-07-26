@@ -37,6 +37,7 @@ export interface ApiLLMModel {
   context_window_size: number;
   order?: number | null;
   use_responses_api?: boolean;
+  is_realtime?: boolean;
 }
 
 export interface ApiParameterDefinition {
@@ -100,6 +101,7 @@ export interface ApiAgent {
   uses_prompt_args?: boolean;
   prompt_arg_names?: string[];
   voice_id?: string | null;
+  realtime_voice?: string | null;
   initialize_tool_id?: string | null;
   model_id?: string | null;
   stage_id?: string | null;
@@ -119,6 +121,7 @@ export interface CreateAgentParams {
   uses_prompt_args?: boolean;
   prompt_arg_names?: string[];
   voice_id?: string | null;
+  realtime_voice?: string | null;
   initialize_tool_id?: string | null;
   model_id?: string | null;
 }
@@ -331,6 +334,7 @@ export interface ManifestAgent {
   uses_prompt_args?: boolean;
   prompt_arg_names?: string[];
   voice_id?: string | null;
+  realtime_voice?: string | null;
   initialize_tool_id?: string | null;
   model_id?: string | null;
 }

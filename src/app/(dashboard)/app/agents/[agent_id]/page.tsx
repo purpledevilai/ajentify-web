@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Info,
   Plus,
   Trash2,
   Wrench,
@@ -46,6 +47,7 @@ import {
   type ToolParamName,
 } from "@/lib/utils/tool-signature";
 import { cn } from "@/lib/utils";
+import { RealtimeVoiceSelector } from "@/components/blocks/realtime-voice-selector";
 
 /**
  * Name assigned by the agents list page when a brand-new agent is created.
@@ -497,6 +499,32 @@ export default function AgentBuilderPage() {
             ))}
           </SelectContent>
         </Select>
+        {(() => {
+          const selectedModel = models.find((m) => m.model === form.model_id);
+          if (!selectedModel?.is_realtime) return null;
+          return (
+            <>
+              <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/40">
+                <Info className="text-blue-600 dark:text-blue-400 mt-0.5 size-4 shrink-0" />
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  This is a realtime model. It&apos;s only available through voice
+                  conversations and uses OpenAI&apos;s Realtime API for low-latency
+                  speech-to-speech interaction.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Realtime Voice</Label>
+                <p className="text-muted-foreground text-xs">
+                  Choose the voice your agent will use. Click to select and hear a preview.
+                </p>
+                <RealtimeVoiceSelector
+                  value={form.realtime_voice}
+                  onChange={(v) => setField("realtime_voice", v)}
+                />
+              </div>
+            </>
+          );
+        })()}
       </BuilderSection>
 
       <BuilderSection

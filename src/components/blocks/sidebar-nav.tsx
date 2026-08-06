@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Wrench, Layers, FileText, FileJson2, KeyRound, BarChart3, MessagesSquare } from "lucide-react";
+import { Bot, Wrench, Layers, FileText, FileJson2, KeyRound, BarChart3, MessagesSquare, Webhook } from "lucide-react";
 import { Logo } from "@/components/primitives/logo";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,7 @@ const items: Array<{
   { href: "/app/stages", label: "Stages", icon: Layers },
   { href: "/app/contexts", label: "Contexts", icon: MessagesSquare },
   { href: "/app/api-keys", label: "API Keys", icon: KeyRound },
+  { href: "/app/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/app/usage", label: "Usage", icon: BarChart3 },
   { href: "/docs", label: "Docs", icon: FileText },
 ];

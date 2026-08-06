@@ -25,6 +25,7 @@ export interface ApiOrganization {
   name: string;
   users: string[];
   webhook_url?: string | null;
+  webhook_signing_api_key_id?: string | null;
   created_at: number;
   updated_at: number;
 }

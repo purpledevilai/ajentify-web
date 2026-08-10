@@ -265,6 +265,24 @@ export default function ContextDetailPage() {
             </div>
           </div>
 
+          {/* System prompt */}
+          {context.system_prompt && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h2 className="font-display text-lg font-semibold">
+                  System prompt
+                </h2>
+                <CopyButton
+                  value={context.system_prompt}
+                  label="Copy system prompt"
+                />
+              </div>
+              <pre className="bg-muted/50 max-h-96 overflow-auto rounded-md p-3 font-sans text-sm whitespace-pre-wrap break-words">
+                {context.system_prompt}
+              </pre>
+            </div>
+          )}
+
           {/* Messages */}
           <div className="space-y-3">
             <h2 className="font-display text-lg font-semibold">

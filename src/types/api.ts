@@ -464,6 +464,8 @@ export interface ApiContext {
   user_id: string;
   client_id?: string | null;
   messages: ApiContextMessage[];
+  /** Snapshot of the agent's resolved system prompt at context-creation time. */
+  system_prompt?: string | null;
   user_defined?: Record<string, unknown> | null;
   model_id?: string | null;
   context_percentage?: number | null;

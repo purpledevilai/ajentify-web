@@ -9,6 +9,7 @@ import { useIntegrationsStore } from "./integrations-store";
 import { useJsonDocumentsStore } from "./json-documents-store";
 import { useStagesStore } from "./stages-store";
 import { useSresStore } from "./sres-store";
+import { useMcpConnectionsStore } from "./mcp-connections-store";
 
 /**
  * Trigger every primitive list store to load its data in parallel. Each
@@ -38,5 +39,6 @@ export function prefetchAllStores() {
     useJsonDocumentsStore.getState().ensureLoaded(),
     useStagesStore.getState().ensureLoaded(),
     useSresStore.getState().ensureLoaded(),
+    useMcpConnectionsStore.getState().ensureLoaded(),
   ]);
 }

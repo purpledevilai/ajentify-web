@@ -199,7 +199,7 @@ export default function ContextsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Contexts"
-        subtitle="Read-only view of contexts created by API keys or public agents. User-owned contexts are excluded."
+        subtitle="Read-only view of contexts created by your API keys, public agents, or your own sessions. Other users' contexts are excluded."
         actions={
           <Button variant="outline" onClick={refresh} disabled={loading}>
             <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} />
@@ -330,7 +330,7 @@ export default function ContextsPage() {
                       description={
                         hasAnyApplied
                           ? "Try adjusting or clearing the filters above."
-                          : "Contexts created by your API keys or public agents will appear here."
+                          : "Contexts created by your API keys, public agents, or your own sessions will appear here."
                       }
                       className="rounded-none border-0 bg-transparent"
                     />
@@ -372,10 +372,18 @@ export default function ContextsPage() {
                     <Td>
                       <Badge
                         variant={
-                          ctx.owner_kind === "public" ? "default" : "secondary"
+                          ctx.owner_kind === "public"
+                            ? "default"
+                            : ctx.owner_kind === "user"
+                              ? "outline"
+                              : "secondary"
                         }
                       >
-                        {ctx.owner_kind === "public" ? "Public" : "API Key"}
+                        {ctx.owner_kind === "public"
+                          ? "Public"
+                          : ctx.owner_kind === "user"
+                            ? "You"
+                            : "API Key"}
                       </Badge>
                     </Td>
                     <Td>

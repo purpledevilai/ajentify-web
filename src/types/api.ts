@@ -99,6 +99,7 @@ export interface ApiAgent {
   is_default_agent: boolean;
   agent_speaks_first?: boolean;
   tools?: string[];
+  mcp_connections?: string[];
   uses_prompt_args?: boolean;
   prompt_arg_names?: string[];
   voice_id?: string | null;
@@ -119,6 +120,7 @@ export interface CreateAgentParams {
   is_public: boolean;
   agent_speaks_first?: boolean;
   tools?: string[];
+  mcp_connections?: string[];
   uses_prompt_args?: boolean;
   prompt_arg_names?: string[];
   voice_id?: string | null;
@@ -244,6 +246,105 @@ export interface UpdateIntegrationParams {
 
 export interface GetIntegrationsResponse {
   integrations: ApiIntegration[];
+}
+
+// --- MCP Connections ---------------------------------------------------------
+
+export interface McpToolDef {
+  name: string;
+  description?: string | null;
+  input_schema?: Record<string, unknown>;
+  output_schema?: Record<string, unknown> | null;
+}
+
+export interface ApiMcpConnection {
+  mcp_connection_id: string;
+  org_id: string;
+  name: string;
+  mcp_url: string;
+  requires_auth: boolean;
+  access_token?: string | null;
+  refresh_token?: string | null;
+  token_endpoint?: string | null;
+  client_id?: string | null;
+  issuer?: string | null;
+  selected_tools: McpToolDef[];
+  stage_id?: string | null;
+  logical_name?: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateMcpConnectionParams {
+  name: string;
+  mcp_url: string;
+  requires_auth?: boolean;
+  access_token?: string | null;
+  refresh_token?: string | null;
+  token_endpoint?: string | null;
+  client_id?: string | null;
+  issuer?: string | null;
+  selected_tools?: McpToolDef[];
+  org_id?: string;
+}
+
+export type UpdateMcpConnectionParams = Partial<Omit<CreateMcpConnectionParams, "org_id">>;
+
+export interface GetMcpConnectionsResponse {
+  mcp_connections: ApiMcpConnection[];
+}
+
+// Endpoint 1 (auth resolution) input.
+export interface DiscoverMcpParams {
+  mcp_url: string;
+}
+
+// Endpoint 1 (auth resolution): whether the server needs OAuth and, if so, its
+// authorize/token endpoints plus a ready-to-use client_id (resolved + cached
+// server-side: static creds / CIMD / DCR).
+export interface DiscoverMcpResponse {
+  requires_auth: boolean;
+  authorization_endpoint?: string | null;
+  token_endpoint?: string | null;
+  client_id?: string | null;
+  authorization_params?: Record<string, string> | null;
+  scope?: string | null;
+  resource?: string | null;
+  issuer?: string | null;
+}
+
+// Endpoint 2 (tools): relay tools/list. Pass an mcp_connection_id for an
+// existing connection to enable server-side token refresh on a 401.
+export interface ListMcpToolsParams {
+  mcp_url?: string;
+  access_token?: string | null;
+  mcp_connection_id?: string | null;
+}
+
+export interface ListMcpToolsResponse {
+  tools: McpToolDef[];
+  needs_reauth: boolean;
+}
+
+// Server-side proxy: OAuth token exchange (authorization_code / refresh_token).
+export interface McpTokenParams {
+  token_endpoint: string;
+  grant_type: "authorization_code" | "refresh_token";
+  client_id: string;
+  issuer?: string | null;
+  code?: string;
+  code_verifier?: string;
+  redirect_uri?: string;
+  refresh_token?: string;
+  resource?: string;
+}
+
+export interface McpTokenResponse {
+  access_token?: string | null;
+  refresh_token?: string | null;
+  token_type?: string | null;
+  expires_in?: number | null;
+  scope?: string | null;
 }
 
 export interface ApiJSONDocument {
@@ -454,7 +555,7 @@ export type ApiContextMessage =
       tool_output: string;
     };
 
-export type ContextOwnerKind = "api_key" | "public";
+export type ContextOwnerKind = "api_key" | "public" | "user";
 
 /** Full context as returned by GET /context/{context_id}. */
 export interface ApiContext {

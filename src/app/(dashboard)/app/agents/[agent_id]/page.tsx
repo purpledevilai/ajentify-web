@@ -8,6 +8,9 @@ import {
   ChevronUp,
   ExternalLink,
   Info,
+  MessageSquare,
+  Mic,
+  Plug,
   Plus,
   Trash2,
   Wrench,
@@ -35,10 +38,17 @@ import { BuilderSection } from "@/components/blocks/builder-section";
 import { BuilderPageHeader } from "@/components/blocks/builder-page-header";
 import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
 import { AddToolDialog } from "@/components/blocks/add-tool-dialog";
+import {
+  StartSessionDialog,
+  type StartSessionConfig,
+} from "@/components/blocks/start-session-dialog";
+import { AgentChatSessionDialog } from "@/components/blocks/agent-chat-session-dialog";
+import { AgentVoiceSessionDialog } from "@/components/blocks/agent-voice-session-dialog";
 import { useAgentBuilderStore } from "@/lib/stores/agent-builder-store";
 import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
 import { useDefaultToolsStore } from "@/lib/stores/default-tools-store";
+import { useMcpConnectionsStore } from "@/lib/stores/mcp-connections-store";
 import { useModelsStore } from "@/lib/stores/models-store";
 import { usePdStore } from "@/lib/stores/parameter-definitions-store";
 import {
@@ -83,9 +93,16 @@ export default function AgentBuilderPage() {
   const ensurePds = usePdStore((s) => s.ensureLoaded);
   const models = useModelsStore((s) => s.data);
   const ensureModels = useModelsStore((s) => s.ensureLoaded);
+  const mcpConnections = useMcpConnectionsStore((s) => s.data);
+  const ensureMcpConnections = useMcpConnectionsStore((s) => s.ensureLoaded);
   const ensureAgents = useAgentsStore((s) => s.ensureLoaded);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const [sessionConfig, setSessionConfig] = useState<StartSessionConfig | null>(
+    null
+  );
 
   const titleRef = useRef<HTMLInputElement>(null);
   const didAutoFocus = useRef(false);
@@ -126,12 +143,14 @@ export default function AgentBuilderPage() {
     ensureDefaultTools();
     ensurePds();
     ensureModels();
+    ensureMcpConnections();
   }, [
     ensureAgents,
     ensureTools,
     ensureDefaultTools,
     ensurePds,
     ensureModels,
+    ensureMcpConnections,
   ]);
 
   useEffect(() => {
@@ -433,6 +452,8 @@ export default function AgentBuilderPage() {
   }
 
   const dirty = isDirty();
+  const sessionModel = models.find((m) => m.model === form.model_id);
+  const isRealtime = !!sessionModel?.is_realtime;
 
   async function onDelete() {
     setDeleting(true);
@@ -462,6 +483,32 @@ export default function AgentBuilderPage() {
         saving={saving}
         onDiscard={discard}
         onSave={save}
+        extraActions={
+          <span
+            title={
+              dirty
+                ? "Save changes to start a session"
+                : !form.model_id
+                  ? "Select a model to start a session"
+                  : undefined
+            }
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="sm:h-9 sm:px-4"
+              disabled={dirty || !form.model_id}
+              onClick={() => setConfigOpen(true)}
+            >
+              {isRealtime ? (
+                <Mic className="size-4" />
+              ) : (
+                <MessageSquare className="size-4" />
+              )}
+              {isRealtime ? "Voice call" : "Chat"}
+            </Button>
+          </span>
+        }
       />
       {saveError && <p className="text-destructive text-sm">{saveError}</p>}
 
@@ -758,6 +805,80 @@ export default function AgentBuilderPage() {
         onChangeAttached={(ids) => setField("tools", ids)}
       />
 
+      <BuilderSection
+        title="MCP connections"
+        description="Expose the selected tools from connected MCP servers to this agent."
+        actions={
+          <Button asChild type="button" variant="outline" size="sm">
+            <Link href="/app/mcp-connections">
+              <Plug className="size-4" />
+              Manage
+            </Link>
+          </Button>
+        }
+      >
+        {mcpConnections.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            No MCP connections yet.{" "}
+            <Link
+              href="/app/mcp-connections/new"
+              className="text-foreground underline underline-offset-2 hover:text-foreground/80"
+            >
+              Connect an MCP server
+            </Link>{" "}
+            to make its tools available.
+          </p>
+        ) : (
+          <div className="min-w-0 space-y-2">
+            {mcpConnections.map((c) => {
+              const attached = form.mcp_connections.includes(c.mcp_connection_id);
+              return (
+                <div
+                  key={c.mcp_connection_id}
+                  className="border-border flex w-full min-w-0 items-start gap-3 rounded-md border p-3"
+                >
+                  <div className="bg-muted text-primary mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md">
+                    <Plug className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="text-foreground text-sm font-medium break-words">
+                      {c.name}
+                    </div>
+                    <div
+                      className="text-muted-foreground truncate text-xs"
+                      title={c.mcp_url}
+                    >
+                      {c.mcp_url}
+                    </div>
+                    <div className="mt-1.5">
+                      <Badge variant="secondary" className="text-muted-foreground">
+                        {c.selected_tools.length}{" "}
+                        {c.selected_tools.length === 1 ? "tool" : "tools"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={attached}
+                    aria-label={`Attach ${c.name}`}
+                    className="mt-0.5 shrink-0"
+                    onCheckedChange={(v) =>
+                      setField(
+                        "mcp_connections",
+                        v
+                          ? [...form.mcp_connections, c.mcp_connection_id]
+                          : form.mcp_connections.filter(
+                              (id) => id !== c.mcp_connection_id
+                            )
+                      )
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </BuilderSection>
+
       <BuilderSection title="Configuration">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -866,6 +987,42 @@ export default function AgentBuilderPage() {
         loading={deleting}
         onConfirm={onDelete}
       />
+
+      <StartSessionDialog
+        open={configOpen}
+        onOpenChange={setConfigOpen}
+        isRealtime={isRealtime}
+        usesPromptArgs={form.uses_prompt_args}
+        promptArgNames={form.prompt_arg_names}
+        onStart={(config) => {
+          setSessionConfig(config);
+          setConfigOpen(false);
+          setSessionOpen(true);
+        }}
+      />
+
+      {sessionOpen &&
+        sessionConfig &&
+        (isRealtime ? (
+          <AgentVoiceSessionDialog
+            open={sessionOpen}
+            onOpenChange={setSessionOpen}
+            agentId={agent_id}
+            agentName={form.agent_name}
+            promptArgs={sessionConfig.promptArgs}
+            userDefined={sessionConfig.userDefined}
+          />
+        ) : (
+          <AgentChatSessionDialog
+            open={sessionOpen}
+            onOpenChange={setSessionOpen}
+            agentId={agent_id}
+            agentName={form.agent_name}
+            agentSpeaksFirst={form.agent_speaks_first}
+            promptArgs={sessionConfig.promptArgs}
+            userDefined={sessionConfig.userDefined}
+          />
+        ))}
     </div>
   );
 }

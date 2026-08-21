@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/primitives/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,8 @@ export interface BuilderPageHeaderProps {
   saving: boolean;
   onDiscard: () => void;
   onSave: () => void | Promise<void>;
+  /** Optional actions rendered before the Unsaved badge / Discard / Save. */
+  extraActions?: ReactNode;
 }
 
 export function BuilderPageHeader({
@@ -48,6 +50,7 @@ export function BuilderPageHeader({
   saving,
   onDiscard,
   onSave,
+  extraActions,
 }: BuilderPageHeaderProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -93,6 +96,7 @@ export function BuilderPageHeader({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 pt-1 sm:gap-2">
+          {extraActions}
           {dirty && (
             <Badge variant="secondary" className="hidden sm:inline-flex">
               Unsaved changes

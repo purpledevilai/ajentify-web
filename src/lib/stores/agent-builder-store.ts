@@ -11,6 +11,7 @@ type FormState = {
   is_public: boolean;
   agent_speaks_first: boolean;
   tools: string[];
+  mcp_connections: string[];
   uses_prompt_args: boolean;
   prompt_arg_names: string[];
   voice_id: string | null;
@@ -44,6 +45,7 @@ function fromAgent(a: ApiAgent): FormState {
     is_public: a.is_public,
     agent_speaks_first: a.agent_speaks_first ?? false,
     tools: a.tools ?? [],
+    mcp_connections: a.mcp_connections ?? [],
     uses_prompt_args: a.uses_prompt_args ?? false,
     prompt_arg_names: a.prompt_arg_names ?? [],
     voice_id: a.voice_id ?? null,

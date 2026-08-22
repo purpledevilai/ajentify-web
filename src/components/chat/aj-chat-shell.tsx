@@ -11,6 +11,7 @@ import { ChatPanel } from "@ajentify/chat/ui";
 
 import { api } from "@/lib/api/client";
 import { fetchAjentifyDocs } from "@/lib/ajentify-docs";
+import { chatWebsocketUrl } from "@/lib/session/start-agent-session";
 
 import { useAgentsStore } from "@/lib/stores/agents-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
@@ -133,6 +134,8 @@ export function AjChatProvider({ children }: { children: React.ReactNode }) {
     <AjentifyProvider
       config={{
         onAjentifyProxyRequest,
+        websocketUrl: chatWebsocketUrl(),
+        beta: true,
         clientSideTools,
         themeBridge: "shadcn",
         onError: (err) => console.error("[ajentify]", err),

@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ajentify/chat": "^0.3.2",
+    "@ajentify/chat": "^0.4.0",
     "@ajentify/cli": "^0.1.0",
     "@ajentify/voice": "^0.3.0",
     "@base-ui/react": "^1.4.1",

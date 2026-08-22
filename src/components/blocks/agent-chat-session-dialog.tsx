@@ -108,6 +108,7 @@ export function AgentChatSessionDialog({
       agentSpeaksFirst,
       clientSideTools,
       themeBridge: "shadcn" as const,
+      beta: true,
       onError: (err: unknown) => console.error("[agent-chat]", err),
     }),
     [onAjentifyProxyRequest, agentSpeaksFirst, clientSideTools]

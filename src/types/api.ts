@@ -33,12 +33,21 @@ export interface ApiOrganization {
 export interface ApiLLMModel {
   model: string;
   model_provider: string;
+  // text (base) rate fields — the canonical 4 buckets (USD / 1M tokens)
   input_token_cost: number;
+  cache_hit_token_cost?: number | null;
+  cache_write_token_cost?: number | null;
   output_token_cost: number;
+  // audio-modality rate fields (realtime only)
+  audio_input_token_cost?: number | null;
+  audio_cache_hit_token_cost?: number | null;
+  audio_cache_write_token_cost?: number | null;
+  audio_output_token_cost?: number | null;
   context_window_size: number;
   order?: number | null;
   use_responses_api?: boolean;
   is_realtime?: boolean;
+  is_transcription?: boolean;
 }
 
 export interface ApiParameterDefinition {
@@ -513,22 +522,52 @@ export interface GetSREsResponse {
   sres: ApiStructuredResponseEndpoint[];
 }
 
+/**
+ * A single day's usage. Costs are NUMERIC (USD); per-bucket token counts and
+ * per-bucket costs feed the stacked daily bar chart. Bucket order is always
+ * input / cache_hit / cache_write / output.
+ */
 export interface DailyUsage {
   date: string;
+  // token buckets
+  input_tokens: number;
+  cache_hit_tokens: number;
+  cache_write_tokens: number;
+  output_tokens: number;
   total_tokens: number;
+  // cost buckets (USD)
+  input_cost: number;
+  cache_hit_cost: number;
+  cache_write_cost: number;
+  output_cost: number;
+  total_cost: number;
 }
 
-export interface ModelCost {
+/**
+ * Usage for a single (model, modality) pair. A realtime model yields separate
+ * `text` and `audio` rows; the transcription model is its own `transcription`
+ * row. Costs are NUMERIC (USD).
+ */
+export interface ModelUsage {
   model: string;
+  modality: string;
+  // token buckets
   input_tokens: number;
+  cache_hit_tokens: number;
+  cache_write_tokens: number;
   output_tokens: number;
-  cost: string;
+  // cost buckets (USD)
+  input_cost: number;
+  cache_hit_cost: number;
+  cache_write_cost: number;
+  output_cost: number;
+  cost: number;
 }
 
 export interface UsageResponse {
   daily_usage: DailyUsage[];
-  total_cost: string;
-  model_costs: ModelCost[];
+  total_cost: number;
+  model_costs: ModelUsage[];
 }
 
 /* -------------------------------------------------------------------------- */

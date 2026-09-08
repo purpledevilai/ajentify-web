@@ -16,7 +16,50 @@ import {
 import { useOrgStore } from "@/lib/stores/org-store";
 import { usageApi } from "@/lib/api/usage";
 import { getErrorMessage } from "@/lib/api/errors";
-import type { UsageResponse } from "@/types/api";
+import { formatCurrency } from "@/lib/utils";
+import type { DailyUsage, UsageResponse } from "@/types/api";
+
+/**
+ * The four cost buckets rendered as stacked segments in the daily bar chart.
+ * Bucket order is always input / cache_hit / cache_write / output. Each entry
+ * maps to its numeric cost + token fields on {@link DailyUsage} plus a color.
+ */
+const COST_BUCKETS: {
+  key: string;
+  label: string;
+  costKey: keyof DailyUsage;
+  tokenKey: keyof DailyUsage;
+  color: string;
+}[] = [
+  {
+    key: "input",
+    label: "Input",
+    costKey: "input_cost",
+    tokenKey: "input_tokens",
+    color: "bg-sky-500",
+  },
+  {
+    key: "cache_hit",
+    label: "Cache read",
+    costKey: "cache_hit_cost",
+    tokenKey: "cache_hit_tokens",
+    color: "bg-violet-500",
+  },
+  {
+    key: "cache_write",
+    label: "Cache write",
+    costKey: "cache_write_cost",
+    tokenKey: "cache_write_tokens",
+    color: "bg-amber-500",
+  },
+  {
+    key: "output",
+    label: "Output",
+    costKey: "output_cost",
+    tokenKey: "output_tokens",
+    color: "bg-emerald-500",
+  },
+];
 
 const MONTHS = [
   "January",
@@ -87,9 +130,9 @@ export default function UsagePage() {
   const isCurrentMonth =
     selectedMonth === now.getMonth() && selectedYear === now.getFullYear();
 
-  const maxTokens = usage
-    ? Math.max(...usage.daily_usage.map((d) => d.total_tokens), 1)
-    : 1;
+  const maxDayTotalCost = usage
+    ? Math.max(...usage.daily_usage.map((d) => d.total_cost), 0)
+    : 0;
 
   const yearOptions: number[] = [];
   for (let y = now.getFullYear(); y >= now.getFullYear() - 3; y--) {
@@ -132,7 +175,10 @@ export default function UsagePage() {
         daily_usage_days: usage?.daily_usage.length ?? 0,
         model_costs: usage?.model_costs.map((mc) => ({
           model: mc.model,
+          modality: mc.modality,
           input_tokens: mc.input_tokens,
+          cache_hit_tokens: mc.cache_hit_tokens,
+          cache_write_tokens: mc.cache_write_tokens,
           output_tokens: mc.output_tokens,
           cost: mc.cost,
         })) ?? [],
@@ -251,17 +297,35 @@ export default function UsagePage() {
             <p className="text-muted-foreground mb-1 text-sm">
               Total Cost &mdash; {MONTHS[selectedMonth]} {selectedYear}
             </p>
-            <p className="text-3xl font-bold">{usage.total_cost}</p>
+            <p className="text-3xl font-bold">
+              {formatCurrency(usage.total_cost)}
+            </p>
           </div>
 
-          {/* Daily Token Usage Bar Chart */}
+          {/* Daily Cost Bar Chart (stacked by cost bucket) */}
           <div className="rounded-lg border bg-card p-5 shadow-sm">
             <div className="mb-4 flex items-baseline justify-between">
-              <p className="font-semibold">Daily Token Usage</p>
+              <p className="font-semibold">Daily Cost</p>
               <p className="text-muted-foreground text-xs">
                 Times shown in UTC
               </p>
             </div>
+
+            {/* Legend */}
+            <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2">
+              {COST_BUCKETS.map((bucket) => (
+                <div key={bucket.key} className="flex items-center gap-1.5">
+                  <span
+                    className={`inline-block size-3 rounded-sm ${bucket.color}`}
+                    aria-hidden
+                  />
+                  <span className="text-muted-foreground text-xs">
+                    {bucket.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
             <div className="overflow-x-auto">
               <div
                 className="flex h-[220px] items-end gap-[2px]"
@@ -270,10 +334,6 @@ export default function UsagePage() {
                 }}
               >
                 {usage.daily_usage.map((day) => {
-                  const heightPct =
-                    maxTokens > 0
-                      ? (day.total_tokens / maxTokens) * 100
-                      : 0;
                   const date = new Date(day.date + "T00:00:00");
                   const dayLabel = date.getDate();
 
@@ -282,17 +342,53 @@ export default function UsagePage() {
                       key={day.date}
                       className="group relative flex h-full min-w-[18px] flex-1 flex-col items-center justify-end"
                     >
-                      {/* Tooltip */}
-                      <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md ring-1 ring-border group-hover:block">
-                        {day.date}: {formatNumber(day.total_tokens)} tokens
+                      {/* Tooltip: per-bucket cost + tokens */}
+                      <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden w-max -translate-x-1/2 rounded bg-popover px-2 py-1.5 text-xs text-popover-foreground shadow-md ring-1 ring-border group-hover:block">
+                        <p className="mb-1 font-medium">{day.date}</p>
+                        {COST_BUCKETS.map((bucket) => (
+                          <div
+                            key={bucket.key}
+                            className="flex items-center gap-1.5 whitespace-nowrap"
+                          >
+                            <span
+                              className={`inline-block size-2 rounded-sm ${bucket.color}`}
+                              aria-hidden
+                            />
+                            <span className="text-muted-foreground">
+                              {bucket.label}:
+                            </span>
+                            <span className="tabular-nums">
+                              {formatCurrency(day[bucket.costKey] as number)}
+                            </span>
+                            <span className="text-muted-foreground tabular-nums">
+                              ({formatNumber(day[bucket.tokenKey] as number)} tok)
+                            </span>
+                          </div>
+                        ))}
+                        <div className="mt-1 border-t pt-1 font-medium">
+                          Total: {formatCurrency(day.total_cost)}
+                        </div>
                       </div>
-                      {/* Bar */}
-                      <div
-                        className="w-full cursor-pointer rounded-sm bg-primary transition-all duration-300 hover:bg-primary/80"
-                        style={{
-                          height: `${Math.max(heightPct, day.total_tokens > 0 ? 2 : 0)}%`,
-                        }}
-                      />
+
+                      {/* Stacked bar (bottom → top: input, cache read, cache write, output) */}
+                      <div className="flex w-full flex-1 flex-col-reverse">
+                        {COST_BUCKETS.map((bucket) => {
+                          const cost = day[bucket.costKey] as number;
+                          const heightPct =
+                            maxDayTotalCost > 0
+                              ? (cost / maxDayTotalCost) * 100
+                              : 0;
+                          if (heightPct <= 0) return null;
+                          return (
+                            <div
+                              key={bucket.key}
+                              className={`w-full cursor-pointer ${bucket.color} transition-opacity duration-300 group-hover:opacity-80`}
+                              style={{ height: `${heightPct}%` }}
+                            />
+                          );
+                        })}
+                      </div>
+
                       {/* Day label */}
                       <span className="text-muted-foreground mt-1 select-none text-[10px]">
                         {dayLabel}
@@ -319,8 +415,17 @@ export default function UsagePage() {
                       <th className="text-muted-foreground pb-2 text-left font-medium">
                         Model
                       </th>
+                      <th className="text-muted-foreground pb-2 text-left font-medium">
+                        Modality
+                      </th>
                       <th className="text-muted-foreground pb-2 text-right font-medium">
                         Input Tokens
+                      </th>
+                      <th className="text-muted-foreground pb-2 text-right font-medium">
+                        Cache Read Tokens
+                      </th>
+                      <th className="text-muted-foreground pb-2 text-right font-medium">
+                        Cache Write Tokens
                       </th>
                       <th className="text-muted-foreground pb-2 text-right font-medium">
                         Output Tokens
@@ -333,18 +438,25 @@ export default function UsagePage() {
                   <tbody>
                     {usage.model_costs.map((mc) => (
                       <tr
-                        key={mc.model}
+                        key={`${mc.model}::${mc.modality}`}
                         className="border-b last:border-0 hover:bg-muted/50"
                       >
                         <td className="py-2 font-mono text-sm">{mc.model}</td>
+                        <td className="py-2 text-sm">{mc.modality}</td>
                         <td className="py-2 text-right tabular-nums">
                           {formatNumber(mc.input_tokens)}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">
+                          {formatNumber(mc.cache_hit_tokens)}
+                        </td>
+                        <td className="py-2 text-right tabular-nums">
+                          {formatNumber(mc.cache_write_tokens)}
                         </td>
                         <td className="py-2 text-right tabular-nums">
                           {formatNumber(mc.output_tokens)}
                         </td>
                         <td className="py-2 text-right font-semibold tabular-nums">
-                          {mc.cost}
+                          {formatCurrency(mc.cost)}
                         </td>
                       </tr>
                     ))}

@@ -9,6 +9,14 @@ export function Footer() {
           <Link href="/docs" className="hover:text-foreground">
             Documentation
           </Link>
+          <a
+            href="https://api.ajentify.com/docs/data-usage-policy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground"
+          >
+            Privacy Policy
+          </a>
           <Link href="/login" className="hover:text-foreground">
             Sign in
           </Link>

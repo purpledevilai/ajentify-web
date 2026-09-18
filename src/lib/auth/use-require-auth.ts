@@ -8,10 +8,13 @@ import {
 } from "@/lib/stores/auth-store";
 import { useOrgStore } from "@/lib/stores/org-store";
 import { prefetchAllStores } from "@/lib/stores/prefetch";
+import { wireBillingHandlers } from "@/lib/api/billing-handlers";
 
-// Module-load side effect: wire the api client to the auth store
-// the moment any authenticated layout is imported. Idempotent.
+// Module-load side effect: wire the api client to the auth store, and wire
+// the global billing gates (402/403) to their toasts, the moment any
+// authenticated layout is imported. Both are idempotent.
 wireApiClientToAuthStore();
+wireBillingHandlers();
 
 /**
  * Mount in any authenticated layout (dashboard, setup). On cold mount,

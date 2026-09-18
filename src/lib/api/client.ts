@@ -35,6 +35,23 @@ export function configureApiClient(opts: {
   onAuthFailure = opts.onAuthFailure;
 }
 
+// --- Billing hooks (injected at app boot; see lib/api/billing-handlers.ts). ---
+// Any model-invocation endpoint can return 402 { error, code:
+// "insufficient_balance" } (balance exhausted) or 403 { error, code:
+// "subscription_required" } (feature gated) — surfaced globally, not just on
+// billing calls. Kept separate from `configureApiClient` so wiring one does
+// not clobber the other.
+let onPaymentRequired: () => void = () => {};
+let onSubscriptionRequired: () => void = () => {};
+
+export function configureBillingHandlers(opts: {
+  onPaymentRequired: () => void;
+  onSubscriptionRequired: () => void;
+}) {
+  onPaymentRequired = opts.onPaymentRequired;
+  onSubscriptionRequired = opts.onSubscriptionRequired;
+}
+
 // --- Single-flight refresh: all concurrent 401s coalesce onto one /refresh promise. ---
 let inflightRefresh: Promise<boolean> | null = null;
 
@@ -112,6 +129,14 @@ export async function request<T>(
     } catch {
       // body is non-JSON or empty; leave as null
     }
+    // Global billing gates: surface once, then still throw so callers can
+    // handle their own local UX. `code` is the machine discriminator (§1).
+    const code = (body as { code?: string } | null)?.code;
+    if (res.status === 402 && code === "insufficient_balance") {
+      onPaymentRequired();
+    } else if (res.status === 403 && code === "subscription_required") {
+      onSubscriptionRequired();
+    }
     throw new ApiError(res.status, body);
   }
   if (res.status === 204) return undefined as T;
@@ -150,4 +175,6 @@ export function __resetApiClientForTests() {
   accessTokenGetter = () => null;
   setAccessToken = () => {};
   onAuthFailure = () => {};
+  onPaymentRequired = () => {};
+  onSubscriptionRequired = () => {};
 }

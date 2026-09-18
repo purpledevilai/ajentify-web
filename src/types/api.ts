@@ -20,6 +20,59 @@ export interface SuccessResponse {
   success: boolean;
 }
 
+/**
+ * Read-only billing block serialized under `billing` on GET /organization.
+ * Mirrors the backend `billing.public_view()` allow-list (contract doc 14
+ * §2.2) field-for-field, including nullability. The frontend never writes
+ * these directly — only via the dedicated endpoints in `lib/api/billing.ts`.
+ *
+ * Balance is never stored: `balance = total_transactions − total_usage`
+ * (both already in USD dollars). Secret/internal fields (allow_negative, org
+ * suspended, all stripe_* ids, allowance.cycle_invoice_id, and the auto_topup
+ * guard internals) are intentionally NOT serialized to the frontend.
+ */
+export interface ApiBilling {
+  total_usage: number;
+  total_transactions: number;
+  usage_last_calculated_at: number;
+  subscription_status:
+    | "none"
+    | "active"
+    | "past_due"
+    | "incomplete"
+    | "canceled";
+  subscription_rate: number | null;
+  subscription_interval: string;
+  subscription_cancel_at: number | null; // unix secs when a cancel-at-period-end is pending; else null
+  allowance?: {
+    per_cycle_amount: number;
+    granted_this_cycle: number;
+    usage_at_grant: number;
+    cycle_start: number | null;
+    cycle_end: number | null;
+  } | null;
+  auto_topup?: {
+    enabled: boolean;
+    threshold: number | null;
+    amount: number | null;
+    suspended: boolean;
+    last_error: string | null;
+  } | null;
+}
+
+/**
+ * A single public ledger row from GET /organization/{org_id}/transactions
+ * (contract doc 14 §3.5). `metadata` is never returned to this surface.
+ */
+export interface ApiTransaction {
+  transaction_id: string;
+  type: string; // one of the doc 14 §3.4 enum
+  amount: number; // signed USD dollars
+  currency: string; // "USD"
+  description?: string | null;
+  created_at: number; // unix seconds
+}
+
 export interface ApiOrganization {
   org_id: string;
   name: string;
@@ -28,6 +81,7 @@ export interface ApiOrganization {
   webhook_signing_api_key_id?: string | null;
   created_at: number;
   updated_at: number;
+  billing?: ApiBilling | null; // null only for un-backfilled legacy orgs
 }
 
 export interface ApiLLMModel {

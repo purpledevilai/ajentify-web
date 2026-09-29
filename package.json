@@ -13,9 +13,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ajentify/chat": "^0.4.0",
+    "@ajentify/chat": "^0.5.0",
     "@ajentify/cli": "^0.1.0",
-    "@ajentify/voice": "^0.4.0",
+    "@ajentify/voice": "^0.5.0",
     "@base-ui/react": "^1.4.1",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-json": "^6.0.2",

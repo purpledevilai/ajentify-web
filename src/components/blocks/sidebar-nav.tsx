@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Wrench, Plug, Layers, FileText, FileJson2, KeyRound, BarChart3, MessagesSquare, Webhook, CreditCard } from "lucide-react";
+import { Bot, Wrench, Plug, Layers, FileText, FileJson2, KeyRound, BarChart3, MessagesSquare, Webhook, CreditCard, Building2 } from "lucide-react";
 import { Logo } from "@/components/primitives/logo";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,7 @@ const items: Array<{
   { href: "/app/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/app/usage", label: "Usage", icon: BarChart3 },
   { href: "/app/billing", label: "Billing", icon: CreditCard },
+  { href: "/app/organization", label: "Organization", icon: Building2 },
   { href: "/docs", label: "Docs", icon: FileText },
 ];
 

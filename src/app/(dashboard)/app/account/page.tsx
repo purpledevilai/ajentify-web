@@ -2,9 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Building2, Mail, User as UserIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Building2,
+  Mail,
+  Plus,
+  User as UserIcon,
+} from "lucide-react";
 import { useGetPageData } from "@ajentify/chat";
 import { PageHeader } from "@/components/blocks/page-header";
+import { CreateOrganizationDialog } from "@/components/blocks/create-organization-dialog";
+import { DeleteAccountDialog } from "@/components/blocks/delete-account-dialog";
+import { DeletionJobDialog } from "@/components/blocks/deletion-job-dialog";
 import {
   Card,
   CardContent,
@@ -12,30 +22,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { userApi } from "@/lib/api/user";
-import { getErrorMessage } from "@/lib/api/errors";
+import { useOrgStore } from "@/lib/stores/org-store";
+import { useDeletionJob } from "@/lib/hooks/use-deletion-job";
 
 export default function AccountPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const activeOrgId = useOrgStore((s) => s.activeOrgId);
+  const setActiveOrg = useOrgStore((s) => s.setActiveOrg);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmInput, setConfirmInput] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const deletion = useDeletionJob();
 
   // Read-only page: surface profile data, no actions. Deleting the account
   // is a user-only action (type-to-confirm modal). useGetPageData must run
@@ -53,7 +54,7 @@ export default function AccountPage() {
               organizations: user.organizations,
             }
           : null,
-        note: "Read-only profile. Deleting an account is a user action.",
+        note: "Read-only profile. Creating an organization and deleting the account are user actions.",
       },
       actions: {},
     }),
@@ -66,24 +67,6 @@ export default function AccountPage() {
     .filter(Boolean)
     .join(" ")
     .trim();
-
-  // Type-to-confirm: requires an exact, case-sensitive email match. Trim
-  // because users sometimes auto-add a trailing space on mobile.
-  const canDelete = confirmInput.trim() === user.email;
-
-  async function onDelete() {
-    setError(null);
-    setDeleting(true);
-    try {
-      await userApi.delete();
-      // Server has invalidated the row; clear local state and bounce home.
-      logout();
-      router.replace("/");
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Unable to delete account"));
-      setDeleting(false);
-    }
-  }
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
@@ -110,24 +93,45 @@ export default function AccountPage() {
             Workspaces you&apos;re a member of.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {user.organizations.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               You&apos;re not a member of any organizations.
             </p>
           ) : (
             <ul className="divide-border divide-y">
-              {user.organizations.map((org) => (
-                <li
-                  key={org.id}
-                  className="flex items-center gap-3 py-2 first:pt-0 last:pb-0"
-                >
-                  <Building2 className="text-muted-foreground size-4" />
-                  <span className="text-sm">{org.name}</span>
-                </li>
-              ))}
+              {user.organizations.map((org) => {
+                const active = org.id === activeOrgId;
+                return (
+                  <li
+                    key={org.id}
+                    className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Building2 className="text-muted-foreground size-4 shrink-0" />
+                      <span className="truncate text-sm">{org.name}</span>
+                      {active && <Badge variant="secondary">Current</Badge>}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setActiveOrg(org.id);
+                        router.push("/app/agents");
+                      }}
+                    >
+                      Open
+                      <ArrowRight className="size-4" />
+                    </Button>
+                  </li>
+                );
+              })}
             </ul>
           )}
+          <Button variant="outline" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            New organization
+          </Button>
         </CardContent>
       </Card>
 
@@ -138,73 +142,34 @@ export default function AccountPage() {
             Danger zone
           </CardTitle>
           <CardDescription>
-            Permanently delete your account. Any organization where you are the
-            last remaining member will be torn down along with its agents,
-            tools, chats, integrations, and API keys.{" "}
+            Permanently delete your account. You are removed from every
+            organization; any organization where you are the only member is
+            deleted too — its Stripe subscription is canceled first, then all
+            of its agents, contexts, tools, documents, integrations, API keys
+            and other resources are removed. Deletion runs in the background
+            and signs you out when it finishes.{" "}
             <strong className="text-foreground">This cannot be undone.</strong>
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button
-            variant="destructive"
-            onClick={() => {
-              setError(null);
-              setConfirmInput("");
-              setConfirmOpen(true);
-            }}
-          >
+          <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
             Delete account
           </Button>
         </CardContent>
       </Card>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete your account?</DialogTitle>
-            <DialogDescription>
-              This will permanently remove your profile and, for any
-              organization where you are the only member, all of its agents,
-              tools, chats, integrations, and API keys. This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="confirm-email">
-              Type{" "}
-              <code className="bg-muted rounded px-1 py-0.5 text-xs">
-                {user.email}
-              </code>{" "}
-              to confirm
-            </Label>
-            <Input
-              id="confirm-email"
-              autoComplete="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              value={confirmInput}
-              onChange={(e) => setConfirmInput(e.target.value)}
-              placeholder={user.email}
-            />
-            {error && <p className="text-destructive text-sm">{error}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmOpen(false)}
-              disabled={deleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={onDelete}
-              disabled={!canDelete || deleting}
-            >
-              {deleting ? "Deleting…" : "Delete account"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateOrganizationDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      <DeleteAccountDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        user={user}
+        onStarted={(job) =>
+          deletion.start({ jobId: job.job_id, kind: "user", label: user.email })
+        }
+      />
+
+      <DeletionJobDialog job={deletion.job} onFinished={deletion.clear} />
     </div>
   );
 }

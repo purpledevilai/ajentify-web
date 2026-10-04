@@ -1,15 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, Plus, Settings2 } from "lucide-react";
 import { useOrgStore } from "@/lib/stores/org-store";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/blocks/copy-button";
+import { CreateOrganizationDialog } from "@/components/blocks/create-organization-dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
 export function OrgSwitcher() {
@@ -17,6 +20,7 @@ export function OrgSwitcher() {
   const organizations = useOrgStore((s) => s.organizations);
   const activeOrgId = useOrgStore((s) => s.activeOrgId);
   const setActiveOrg = useOrgStore((s) => s.setActiveOrg);
+  const [createOpen, setCreateOpen] = useState(false);
   const active = organizations.find((o) => o.id === activeOrgId);
   if (!active) return null;
   return (
@@ -30,7 +34,7 @@ export function OrgSwitcher() {
             </Button>
           }
         />
-        <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuContent align="start" className="w-64">
           {organizations.map((o) => (
             <DropdownMenuItem
               key={o.id}
@@ -41,10 +45,23 @@ export function OrgSwitcher() {
               }}
               className="justify-between"
             >
-              <span>{o.name}</span>
-              {o.id === activeOrgId && <Check className="size-4" />}
+              <span className="truncate">{o.name}</span>
+              {o.id === activeOrgId && <Check className="size-4 shrink-0" />}
             </DropdownMenuItem>
           ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => router.push("/app/organization")}>
+            <Settings2 className="mr-2 size-4" />
+            Organization settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => router.push("/app")}>
+            <LayoutGrid className="mr-2 size-4" />
+            All organizations
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 size-4" />
+            New organization…
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <div
@@ -58,6 +75,7 @@ export function OrgSwitcher() {
           stopRowPropagation={false}
         />
       </div>
+      <CreateOrganizationDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

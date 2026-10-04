@@ -686,3 +686,131 @@ export interface GetOrgContextsResponse {
   contexts: ApiOrgContextSummary[];
   next_cursor?: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Jobs (GET /job/{job_id}; 202 bodies from async routes)
+// Mirrors `ajentify-api` `Models/Job.py::public_dict` — everything on the row
+// except `callback_token` and `principal`.
+// ---------------------------------------------------------------------------
+
+export type JobStatus = "queued" | "in_progress" | "completed" | "error";
+
+export type DeletionPhase =
+  | "cancel_subscription"
+  | "delete_resources"
+  | "delete_org"
+  | "leave_orgs"
+  | "delete_user"
+  | "done";
+
+export type DeletionResourceStatus = "pending" | "in_progress" | "done";
+
+export interface DeletionResourceProgress {
+  deleted: number;
+  /** null while the backend hasn't counted the resource type yet. */
+  total: number | null;
+  status: DeletionResourceStatus;
+}
+
+export type DeletionOrgAction = "leave" | "delete";
+export type DeletionOrgStatus = "pending" | "in_progress" | "done" | "error";
+
+export interface DeletionOrgProgress {
+  org_id: string;
+  name: string;
+  action: DeletionOrgAction;
+  status: DeletionOrgStatus;
+}
+
+/**
+ * `job.data.progress` for DELETE /organization/{org_id} and DELETE /user.
+ * `resources` keys are resource-type names (agents, tools, …); render whatever
+ * arrives — the set may grow without a frontend change.
+ */
+export interface DeletionProgress {
+  kind: "organization" | "user";
+  phase: DeletionPhase;
+  org_id?: string;
+  orgs?: DeletionOrgProgress[];
+  resources: Record<string, DeletionResourceProgress>;
+}
+
+export interface ApiJobError {
+  status_code: number;
+  message: string;
+  code?: string;
+}
+
+export interface ApiJobData {
+  progress?: DeletionProgress;
+  cursor?: unknown;
+  chain_seq?: number;
+  heartbeat_at?: number;
+  logs?: unknown[];
+  results?: unknown;
+  [key: string]: unknown;
+}
+
+export interface ApiJob {
+  job_id: string;
+  owner_id: string;
+  status: JobStatus;
+  message?: string | null;
+  data: ApiJobData;
+  result?: unknown;
+  error?: ApiJobError | null;
+  route?: string | null;
+  method?: string | null;
+  request_id?: string | null;
+  callback_url?: string | null;
+  created_at: number;
+  updated_at: number;
+  started_at?: number | null;
+  finished_at?: number | null;
+  expires_at?: number | null;
+}
+
+/** 202 body: the job row plus `request_id` and (authenticated callers) `poll_url`. */
+export interface ApiJobAccepted extends ApiJob {
+  request_id: string;
+  poll_url?: string;
+}
+
+/** 202 body of DELETE /user — also lists what happens to each org. */
+export interface ApiUserDeletionAccepted extends ApiJobAccepted {
+  orgs: Array<{ org_id: string; name: string; action: DeletionOrgAction }>;
+}
+
+// ---------------------------------------------------------------------------
+// Organization members & invites (docs/api/organization-members.md)
+// ---------------------------------------------------------------------------
+
+export interface ApiOrgMember {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface GetOrgMembersResponse {
+  members: ApiOrgMember[];
+}
+
+export interface ApiInvite {
+  /** `"<org_id>#<email>"` — must be percent-encoded in URLs. */
+  invite_id: string;
+  org_id: string;
+  email: string;
+  invited_by_user_id: string;
+  org_name: string;
+  created_at: number;
+  expires_at: number;
+}
+
+export interface GetOrgInvitesResponse {
+  invites: ApiInvite[];
+}
+
+export type InviteMemberResponse =
+  | { status: "added"; member: ApiOrgMember }
+  | { status: "invited"; invite: ApiInvite };

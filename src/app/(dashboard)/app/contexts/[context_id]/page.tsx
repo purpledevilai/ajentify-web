@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageSquare, Mic } from "lucide-react";
 import { useGetPageData } from "@ajentify/chat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/blocks/copy-button";
+import { ContextChatSessionDialog } from "@/components/blocks/context-chat-session-dialog";
+import { ContextVoiceSessionDialog } from "@/components/blocks/context-voice-session-dialog";
 import { contextsApi } from "@/lib/api/contexts";
 import { getErrorMessage } from "@/lib/api/errors";
+import { useAgentsStore } from "@/lib/stores/agents-store";
+import { useModelsStore } from "@/lib/stores/models-store";
 import { formatDateTime } from "@/lib/utils/date";
 import { cn } from "@/lib/utils";
 import type { ApiContext, ApiContextMessage } from "@/types/api";
@@ -157,6 +161,18 @@ export default function ContextDetailPage() {
   const [context, setContext] = useState<ApiContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionOpen, setSessionOpen] = useState(false);
+
+  const models = useModelsStore((s) => s.data);
+  const ensureModels = useModelsStore((s) => s.ensureLoaded);
+  const agents = useAgentsStore((s) => s.data);
+  const ensureAgents = useAgentsStore((s) => s.ensureLoaded);
+
+  useEffect(() => {
+    // Needed to resolve the context's model (voice vs text) and agent name.
+    ensureModels();
+    ensureAgents();
+  }, [ensureModels, ensureAgents]);
 
   useEffect(() => {
     if (!contextId) return;
@@ -181,6 +197,37 @@ export default function ContextDetailPage() {
     };
   }, [contextId]);
 
+  // Silent refetch after a session closes so the message list reflects the
+  // conversation that just happened.
+  const refetch = useCallback(async () => {
+    if (!contextId) return;
+    try {
+      setContext(await contextsApi.get(contextId, true));
+    } catch {
+      // keep the stale view; the user can reload
+    }
+  }, [contextId]);
+
+  const agent = useMemo(
+    () => (context ? agents.find((a) => a.agent_id === context.agent_id) : undefined),
+    [agents, context],
+  );
+  // The model the context was created with. Older contexts predate
+  // `model_id` on the row — fall back to the agent's current model.
+  const sessionModelId = context?.model_id || agent?.model_id || null;
+  const sessionModel = models.find((m) => m.model === sessionModelId);
+  const isRealtime = !!sessionModel?.is_realtime;
+  const canOpen = !!context && !!sessionModelId;
+  const agentName = agent?.agent_name ?? context?.agent_id ?? "Agent";
+
+  const handleSessionOpenChange = useCallback(
+    (open: boolean) => {
+      setSessionOpen(open);
+      if (!open) void refetch();
+    },
+    [refetch],
+  );
+
   useGetPageData(
     () => ({
       data: {
@@ -199,11 +246,14 @@ export default function ContextDetailPage() {
               message_count: context.messages?.length ?? 0,
             }
           : null,
-        note: "Read-only context inspector.",
+        session_model_id: sessionModelId,
+        session_kind: isRealtime ? "voice" : "chat",
+        session_open: sessionOpen,
+        note: "Context inspector. The user can reopen this context in a chat or voice session via the header button.",
       },
       actions: {},
     }),
-    [contextId, loading, error, context],
+    [contextId, loading, error, context, sessionModelId, isRealtime, sessionOpen],
   );
 
   return (
@@ -220,6 +270,31 @@ export default function ContextDetailPage() {
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           Context
         </h1>
+        {!loading && !error && context && (
+          <span
+            className="ml-auto"
+            title={
+              !sessionModelId
+                ? "This context has no model to open a session with"
+                : undefined
+            }
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="sm:h-9 sm:px-4"
+              disabled={!canOpen}
+              onClick={() => setSessionOpen(true)}
+            >
+              {isRealtime ? (
+                <Mic className="size-4" />
+              ) : (
+                <MessageSquare className="size-4" />
+              )}
+              {isRealtime ? "Voice call" : "Chat"}
+            </Button>
+          </span>
+        )}
       </div>
 
       {error && <p className="text-destructive text-sm">{error}</p>}
@@ -302,6 +377,28 @@ export default function ContextDetailPage() {
           </div>
         </>
       )}
+
+      {sessionOpen &&
+        context &&
+        (isRealtime ? (
+          <ContextVoiceSessionDialog
+            open={sessionOpen}
+            onOpenChange={handleSessionOpenChange}
+            contextId={context.context_id}
+            clientId={context.client_id ?? null}
+            agentName={agentName}
+          />
+        ) : (
+          <ContextChatSessionDialog
+            open={sessionOpen}
+            onOpenChange={handleSessionOpenChange}
+            contextId={context.context_id}
+            clientId={context.client_id ?? null}
+            agentId={context.agent_id}
+            agentName={agentName}
+            userDefined={context.user_defined}
+          />
+        ))}
     </div>
   );
 }

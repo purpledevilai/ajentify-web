@@ -40,6 +40,35 @@ export async function startAgentSession(
   };
 }
 
+export interface ResumeContextSessionParams {
+  contextId: string;
+  /** The context's own `client_id`; the minted token is scoped to it. */
+  clientId?: string | null;
+}
+
+/**
+ * Mint a client-scoped connect token for an EXISTING context (no new context
+ * is created). Used to reopen a context from the context detail page.
+ */
+export async function resumeContextSession(
+  params: ResumeContextSessionParams
+): Promise<AgentSession> {
+  const orgId = useOrgStore.getState().activeOrgId;
+  if (!orgId) throw new Error("No active organization selected.");
+
+  const key = await apiKeysApi.generate({
+    org_id: orgId,
+    type: "client",
+    client_id: params.clientId ?? undefined,
+  });
+
+  return {
+    contextId: params.contextId,
+    clientId: params.clientId ?? null,
+    accessToken: key.token,
+  };
+}
+
 // --- TSS URL helpers ---
 // We store one base URL (no path suffix). Chat needs `${base}/ws`; the voice
 // SDK takes the base and appends `/ws-realtime` itself. When unset, both SDKs

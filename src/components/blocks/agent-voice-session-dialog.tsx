@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   startAgentSession,
   voiceTssUrl,
+  type AgentSession,
 } from "@/lib/session/start-agent-session";
 import {
   ClientToolResponseDialog,
@@ -44,6 +45,10 @@ export function AgentVoiceSessionDialog({
   promptArgs,
   userDefined,
 }: AgentVoiceSessionDialogProps) {
+  const startSession = useCallback(
+    () => startAgentSession({ agentId, promptArgs, userDefined }),
+    [agentId, promptArgs, userDefined]
+  );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -53,10 +58,8 @@ export function AgentVoiceSessionDialog({
         <AjentifyVoiceProvider
           config={{ mode: "realtime", tokenStreamingServerUrl: voiceTssUrl() }}
         >
-          <VoiceCallInner
-            agentId={agentId}
-            promptArgs={promptArgs}
-            userDefined={userDefined}
+          <VoiceCallSession
+            startSession={startSession}
             onClose={() => onOpenChange(false)}
           />
         </AjentifyVoiceProvider>
@@ -65,15 +68,17 @@ export function AgentVoiceSessionDialog({
   );
 }
 
-function VoiceCallInner({
-  agentId,
-  promptArgs,
-  userDefined,
+/**
+ * The live call UI (status, transcript, mute/end, client-tool popup). Must be
+ * rendered inside an `<AjentifyVoiceProvider mode="realtime">`. `startSession`
+ * resolves the `{ contextId, accessToken }` to connect with — either a freshly
+ * created context (agent page) or an existing one (context detail page).
+ */
+export function VoiceCallSession({
+  startSession,
   onClose,
 }: {
-  agentId: string;
-  promptArgs: Record<string, string>;
-  userDefined: Record<string, unknown>;
+  startSession: () => Promise<AgentSession>;
   onClose: () => void;
 }) {
   const responder = useManualToolResponder();
@@ -97,17 +102,13 @@ function VoiceCallInner({
     startedRef.current = true;
     setError(null);
     try {
-      const session = await startAgentSession({
-        agentId,
-        promptArgs,
-        userDefined,
-      });
+      const session = await startSession();
       await initialize(session.contextId, session.accessToken);
     } catch (err) {
       startedRef.current = false;
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [agentId, promptArgs, userDefined, initialize]);
+  }, [startSession, initialize]);
 
   // Auto-connect on mount (the user already confirmed the config modal).
   useEffect(() => {

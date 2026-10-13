@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { MCP_QUICK_ADD_PRESETS, type McpQuickAddPreset } from "@/lib/constants/mcp-quick-add";
 import { Button } from "@/components/primitives/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +29,36 @@ export default function NewMcpConnectionPage() {
   const [selected, setSelected] = useState<string[]>([]);
 
   const canConnect = name.trim().length > 0 && mcpUrl.trim().length > 0;
+
+  // Quick-add presets: fill the form, scroll the server fields into view and
+  // flash them so it's obvious something was entered.
+  const serverSectionRef = useRef<HTMLDivElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [presetId, setPresetId] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState(false);
+
+  function applyPreset(preset: McpQuickAddPreset) {
+    setName(preset.name);
+    setMcpUrl(preset.mcpUrl);
+    setPresetId(preset.id);
+    setTools(null);
+    setError(null);
+    serverSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Focus after the scroll settles so the browser doesn't fight it.
+    window.setTimeout(() => urlInputRef.current?.focus({ preventScroll: true }), 350);
+    setHighlight(true);
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlight(false), 1600);
+  }
+
+  function onUrlChange(value: string) {
+    setMcpUrl(value);
+    // Editing the URL by hand means it's no longer "the preset".
+    if (presetId && value.trim() !== MCP_QUICK_ADD_PRESETS.find((p) => p.id === presetId)?.mcpUrl) {
+      setPresetId(null);
+    }
+  }
 
   async function onConnect() {
     setError(null);
@@ -89,9 +121,14 @@ export default function NewMcpConnectionPage() {
 
       {error && <p className="text-destructive text-sm">{error}</p>}
 
+      <div ref={serverSectionRef} className="scroll-mt-6">
       <BuilderSection
         title="Server"
         description="The MCP server's JSON-RPC endpoint URL."
+        className={cn(
+          "transition-shadow duration-500",
+          highlight && "ring-primary/60 shadow-primary/20 shadow-lg ring-2"
+        )}
       >
         <div className="space-y-2">
           <Label htmlFor="mcp-name">Name</Label>
@@ -106,8 +143,9 @@ export default function NewMcpConnectionPage() {
           <Label htmlFor="mcp-url">MCP URL</Label>
           <Input
             id="mcp-url"
+            ref={urlInputRef}
             value={mcpUrl}
-            onChange={(e) => setMcpUrl(e.target.value)}
+            onChange={(e) => onUrlChange(e.target.value)}
             placeholder="https://mcp.example.com/mcp"
           />
         </div>
@@ -121,6 +159,49 @@ export default function NewMcpConnectionPage() {
           </span>
         </div>
       </BuilderSection>
+      </div>
+
+      {!tools && (
+        <BuilderSection
+          title="Quick add"
+          description="Servers we've verified work with Ajentify. Pick one to fill in the details above, then hit Connect."
+        >
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {MCP_QUICK_ADD_PRESETS.map((preset) => {
+              const active = presetId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset)}
+                  aria-pressed={active}
+                  className={cn(
+                    "border-border bg-background hover:border-primary/40 hover:bg-muted/40 group relative flex cursor-pointer items-start gap-3 rounded-lg border p-4 text-left transition-colors",
+                    "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+                    active && "border-primary/60 bg-primary/5"
+                  )}
+                >
+                  <span className="bg-card ring-border flex size-10 shrink-0 items-center justify-center rounded-md ring-1">
+                    <preset.Logo className="size-6" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="text-muted-foreground block font-mono text-[10px] tracking-[0.14em] uppercase">
+                      {preset.vendor}
+                    </span>
+                    <span className="block font-medium">{preset.name}</span>
+                    <span className="text-muted-foreground mt-0.5 block text-xs leading-5">
+                      {preset.description}
+                    </span>
+                  </span>
+                  {active && (
+                    <Check className="text-primary absolute top-3 right-3 size-4" aria-hidden="true" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </BuilderSection>
+      )}
 
       {tools && (
         <BuilderSection

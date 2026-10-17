@@ -18,10 +18,16 @@ export async function sha256Base64Url(input: string): Promise<string> {
 
 export type PkceProvider = "google" | "microsoft";
 
-interface PkcePayload {
+export interface PkcePayload {
   verifier: string;
   state: string;
   provider: PkceProvider;
+  /**
+   * Where to send the user after the provider round-trip (the login page's
+   * `?next=`). Stashed alongside the PKCE verifier because the provider
+   * redirect loses our query string; `/callback` reads it back.
+   */
+  next?: string;
 }
 
 const STORAGE_KEY = "ajentify.pkce";

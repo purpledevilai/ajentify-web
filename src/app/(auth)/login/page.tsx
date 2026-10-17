@@ -55,7 +55,7 @@ function LoginForm() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => startOAuth("google")}
+          onClick={() => startOAuth("google", next)}
         >
           <GoogleIcon className="size-5" />
           Continue with Google
@@ -64,7 +64,7 @@ function LoginForm() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => startOAuth("microsoft")}
+          onClick={() => startOAuth("microsoft", next)}
         >
           <MicrosoftIcon className="size-5" />
           Continue with Microsoft

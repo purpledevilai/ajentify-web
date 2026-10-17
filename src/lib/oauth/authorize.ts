@@ -20,7 +20,12 @@ export interface AuthorizeParams {
   redirect_uri: string;
   /** Raw `scope` string as sent by the client; `undefined` when absent. */
   scope?: string;
-  state: string;
+  /**
+   * CSRF token echoed back on the redirect. RFC 6749 makes it RECOMMENDED, not
+   * required, and the official MCP TypeScript SDK (Claude Code et al.) omits it —
+   * PKCE already binds the code to the client instance.
+   */
+  state?: string;
   code_challenge: string;
   code_challenge_method: "S256";
   resource?: string;
@@ -72,7 +77,6 @@ export function parseAuthorizeParams(
   }
 
   const state = nonEmpty(sp, "state");
-  if (!state) return fail("invalid_request", "Missing state.");
 
   const code_challenge = nonEmpty(sp, "code_challenge");
   if (!code_challenge) return fail("invalid_request", "Missing code_challenge.");
@@ -219,7 +223,7 @@ export function appendRedirectParams(
 }
 
 /** Redirect the client receives when the user clicks Deny. */
-export function buildDenyRedirect(redirectUri: string, state: string): string {
+export function buildDenyRedirect(redirectUri: string, state?: string): string {
   return appendRedirectParams(redirectUri, {
     error: "access_denied",
     state,
@@ -230,7 +234,7 @@ export function buildDenyRedirect(redirectUri: string, state: string): string {
 export function buildErrorRedirect(
   redirectUri: string,
   error: string,
-  state: string,
+  state: string | undefined,
   description?: string
 ): string {
   return appendRedirectParams(redirectUri, {

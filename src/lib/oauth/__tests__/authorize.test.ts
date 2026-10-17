@@ -72,7 +72,7 @@ describe("parseAuthorizeParams", () => {
     });
   });
 
-  it.each(["client_id", "redirect_uri", "state", "code_challenge"])(
+  it.each(["client_id", "redirect_uri", "code_challenge"])(
     "rejects a missing %s",
     (key) => {
       const r = parseAuthorizeParams(sp({ [key]: null }));
@@ -83,9 +83,25 @@ describe("parseAuthorizeParams", () => {
     }
   );
 
+  it("accepts a missing or blank state (the MCP TypeScript SDK sends none)", () => {
+    for (const value of [null, "   "]) {
+      const r = parseAuthorizeParams(sp({ state: value }));
+      expect(r.ok).toBe(true);
+      if (r.ok) expect(r.params.state).toBeUndefined();
+    }
+  });
+
   it("rejects whitespace-only required values", () => {
-    const r = parseAuthorizeParams(sp({ state: "   " }));
+    const r = parseAuthorizeParams(sp({ code_challenge: "   " }));
     expect(r.ok).toBe(false);
+  });
+
+  it("deny/error redirects omit state when the request had none", () => {
+    const deny = new URL(buildDenyRedirect("http://localhost:8787/callback", undefined));
+    expect(deny.searchParams.get("error")).toBe("access_denied");
+    expect(deny.searchParams.has("state")).toBe(false);
+    const err = new URL(buildErrorRedirect("http://localhost:8787/callback", "invalid_scope", undefined));
+    expect(err.searchParams.has("state")).toBe(false);
   });
 
   it("rejects code_challenge_method other than S256, including plain and missing", () => {

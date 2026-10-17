@@ -10,7 +10,8 @@ export interface OAuthAuthorizePreviewRequest {
   oauth_client_id: string;
   redirect_uri: string;
   scope?: string;
-  state: string;
+  /** Optional per RFC 6749; the MCP TypeScript SDK omits it (PKCE binds the code). */
+  state?: string;
   code_challenge: string;
   code_challenge_method: "S256";
   resource?: string;

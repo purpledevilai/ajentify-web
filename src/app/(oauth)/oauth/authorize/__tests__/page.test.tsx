@@ -174,6 +174,7 @@ describe("/oauth/authorize page", () => {
       oauth_client_id: "https://claude.ai/oauth/mcp-oauth-client-metadata",
       redirect_uri: "https://claude.ai/api/mcp/auth_callback",
       scope: "filesystem:read",
+      requested_scope: "filesystem:read filesystem:write",
       state: "st-123",
       code_challenge: "cc",
       code_challenge_method: "S256",
@@ -231,11 +232,11 @@ describe("/oauth/authorize page", () => {
     expect(replaced).toEqual([]);
   });
 
-  it("forwards invalid_scope to the client only when the server vouched for redirect_uri", async () => {
+  it("forwards invalid_scope to the client (the API validated redirect_uri before scopes)", async () => {
     search = QUERY;
     signedIn();
     preview.mockRejectedValueOnce(
-      new ApiError(400, { error: "Unknown scope", code: "invalid_scope", redirect_valid: true })
+      new ApiError(400, { error: "Unknown scope", code: "invalid_scope" })
     );
     const { unmount } = render(<OAuthAuthorizePage />);
     await waitFor(() => expect(replaced).toHaveLength(1));
@@ -244,13 +245,13 @@ describe("/oauth/authorize page", () => {
     expect(u.searchParams.get("state")).toBe("st-123");
     unmount();
 
-    // Without redirect_valid → card, no redirect.
+    // invalid_redirect_uri → card, never a redirect.
     replaced = [];
     preview.mockRejectedValueOnce(
-      new ApiError(400, { error: "Unknown scope", code: "invalid_scope" })
+      new ApiError(400, { error: "redirect_uri is not registered for this client", code: "invalid_redirect_uri" })
     );
     render(<OAuthAuthorizePage />);
-    expect(await screen.findByText("Invalid permissions requested")).toBeInTheDocument();
+    expect(await screen.findByText(/redirect/i)).toBeInTheDocument();
     expect(replaced).toEqual([]);
   });
 

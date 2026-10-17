@@ -91,15 +91,14 @@ describe("oauthAuthorizeApi.preview", () => {
     });
   });
 
-  it("surfaces the error code + redirect_valid flag on an invalid_scope rejection", async () => {
+  it("surfaces the error code on an invalid_scope rejection", async () => {
     mockFetch(400, {
       error: "Unknown scope crm:read",
       code: "invalid_scope",
-      redirect_valid: true,
     });
     await expect(oauthAuthorizeApi.preview(PREVIEW_BODY)).rejects.toMatchObject({
       status: 400,
-      body: { code: "invalid_scope", redirect_valid: true },
+      body: { code: "invalid_scope" },
     } satisfies Partial<ApiError>);
   });
 

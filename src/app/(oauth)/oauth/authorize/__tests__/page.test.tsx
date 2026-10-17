@@ -251,7 +251,7 @@ describe("/oauth/authorize page", () => {
       new ApiError(400, { error: "redirect_uri is not registered for this client", code: "invalid_redirect_uri" })
     );
     render(<OAuthAuthorizePage />);
-    expect(await screen.findByText(/redirect/i)).toBeInTheDocument();
+    expect(await screen.findByText("Invalid redirect URL")).toBeInTheDocument();
     expect(replaced).toEqual([]);
   });
 

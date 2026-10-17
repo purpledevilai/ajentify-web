@@ -58,7 +58,9 @@ function OAuthCallback() {
                 ),
               });
         complete(r);
-        router.replace(resolvePostAuthDestination(r.user));
+        // `next` was stashed with the PKCE payload before leaving for the
+        // provider; resolvePostAuthDestination allow-lists it.
+        router.replace(resolvePostAuthDestination(r.user, pkce.next));
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "OAuth login failed";

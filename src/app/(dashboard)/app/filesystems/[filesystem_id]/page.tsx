@@ -206,6 +206,7 @@ function FilesystemExplorer() {
     (path: string, opts: { replace?: boolean; force?: boolean } = {}) => {
       if (path !== selectedPath && !opts.force && !confirmDiscard()) return;
       fileDirtyRef.current = false;
+      setEditOnOpen((cur) => (cur === path ? cur : null));
       const sp = new URLSearchParams();
       if (path !== ROOT_PATH) sp.set("path", path);
       const href = sp.size > 0 ? `${pathname}?${sp.toString()}` : pathname;

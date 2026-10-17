@@ -4,3 +4,4 @@
 export const AGENT_BUILDER_PREFETCH_HREF = "/app/agents/_";
 export const TOOL_BUILDER_PREFETCH_HREF = "/app/tools/_";
 export const DOCUMENT_BUILDER_PREFETCH_HREF = "/app/documents/_";
+export const FILESYSTEM_EXPLORER_PREFETCH_HREF = "/app/filesystems/_";

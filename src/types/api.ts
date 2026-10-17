@@ -441,6 +441,181 @@ export interface GetJSONDocumentsResponse {
   json_documents: ApiJSONDocument[];
 }
 
+/* -------------------------------------------------------------------------- */
+/* Filesystem memory                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A filesystem memory: a tree of folders (with descriptions) and UTF-8 text
+ * files an agent navigates with the `Filesystem` tool category. REST paths
+ * are *internal* (`/projects/notes.md`, root `/`); the path an agent uses is
+ * `/<filesystem_id>` + internal path (see `lib/filesystems/paths.ts`).
+ */
+export interface ApiFilesystem {
+  filesystem_id: string;
+  org_id: string;
+  name: string;
+  /** Doubles as the root folder's description. */
+  description: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreateFilesystemParams {
+  org_id?: string;
+  name: string;
+  description: string;
+}
+
+export interface UpdateFilesystemParams {
+  name?: string;
+  description?: string;
+}
+
+export interface GetFilesystemsResponse {
+  filesystems: ApiFilesystem[];
+}
+
+export interface DeleteCounts {
+  folders: number;
+  files: number;
+}
+
+export interface DeleteFilesystemResponse {
+  filesystem_id: string;
+  deleted: DeleteCounts;
+}
+
+export type FilesystemNodeType = "folder" | "file";
+
+/** One row of `GET /filesystem/{id}/tree` — flat, sorted by path, no content. */
+export interface ApiFilesystemTreeNode {
+  path: string;
+  type: FilesystemNodeType;
+  name: string;
+  parent_path: string;
+  description?: string | null;
+  size_bytes: number;
+  updated_at: number;
+}
+
+export interface GetFilesystemTreeResponse {
+  filesystem_id: string;
+  name: string;
+  description: string;
+  nodes: ApiFilesystemTreeNode[];
+}
+
+export interface ApiFilesystemFileNode {
+  type: "file";
+  path: string;
+  name: string;
+  parent_path: string;
+  content: string;
+  size_bytes: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ApiFilesystemFolderChild {
+  name: string;
+  path: string;
+  type: FilesystemNodeType;
+  description?: string | null;
+  size_bytes?: number;
+}
+
+export interface ApiFilesystemFolderNode {
+  type: "folder";
+  path: string;
+  name: string;
+  parent_path: string;
+  description: string;
+  children: ApiFilesystemFolderChild[];
+}
+
+export type ApiFilesystemNode = ApiFilesystemFileNode | ApiFilesystemFolderNode;
+
+/** Folder node as returned by the folder mutators (no children listing). */
+export interface ApiFilesystemFolderResult {
+  type: "folder";
+  path: string;
+  name: string;
+  parent_path: string;
+  description: string;
+  created_at?: number;
+  updated_at?: number;
+}
+
+/** File node as returned by the file mutators (no content). */
+export interface ApiFilesystemFileResult {
+  type: "file";
+  path: string;
+  name: string;
+  parent_path: string;
+  size_bytes: number;
+  created_at?: number;
+  updated_at: number;
+}
+
+export interface CreateFolderParams {
+  path: string;
+  description: string;
+  create_parents?: boolean;
+}
+
+export interface UpdateFolderParams {
+  path: string;
+  description: string;
+}
+
+export interface CreateFileParams {
+  path: string;
+  content: string;
+  create_parents?: boolean;
+}
+
+export interface UpdateFileParams {
+  path: string;
+  content: string;
+  /** Optimistic lock — the API answers 409 `conflict` if the file changed since. */
+  expected_updated_at?: number;
+}
+
+export interface MovePathParams {
+  source_path: string;
+  destination_path: string;
+  create_parents?: boolean;
+}
+
+export interface MovePathResponse {
+  source_path: string;
+  destination_path: string;
+  type: FilesystemNodeType;
+}
+
+export interface DeleteNodeResponse {
+  path: string;
+  type: FilesystemNodeType;
+  deleted: DeleteCounts;
+}
+
+export type FilesystemSearchScope = "names" | "contents" | "both";
+
+export interface FilesystemSearchMatch {
+  path: string;
+  type: FilesystemNodeType;
+  matched_on: string;
+  snippet?: string | null;
+}
+
+export interface FilesystemSearchResponse {
+  query: string;
+  path: string;
+  matches: FilesystemSearchMatch[];
+  truncated: boolean;
+}
+
 export interface ApiStage {
   stage_id: string;
   org_id: string;

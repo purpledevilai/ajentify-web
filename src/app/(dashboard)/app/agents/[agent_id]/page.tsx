@@ -38,6 +38,7 @@ import { BuilderSection } from "@/components/blocks/builder-section";
 import { BuilderPageHeader } from "@/components/blocks/builder-page-header";
 import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
 import { AddToolDialog } from "@/components/blocks/add-tool-dialog";
+import { AgentFilesystemsSection } from "@/components/blocks/agent-filesystems-section";
 import {
   StartSessionDialog,
   type StartSessionConfig,
@@ -49,6 +50,13 @@ import { useAgentsStore, agentsActions } from "@/lib/stores/agents-store";
 import { useToolsStore } from "@/lib/stores/tools-store";
 import { useDefaultToolsStore } from "@/lib/stores/default-tools-store";
 import { useMcpConnectionsStore } from "@/lib/stores/mcp-connections-store";
+import { useFilesystemsStore } from "@/lib/stores/filesystems-store";
+import {
+  attachFilesystemToPrompt,
+  detachFilesystemFromPrompt,
+  referencedFilesystemIds,
+} from "@/lib/filesystems/snippet";
+import { filesystemToolIds, unionToolIds } from "@/lib/filesystems/tools";
 import { useModelsStore } from "@/lib/stores/models-store";
 import { usePdStore } from "@/lib/stores/parameter-definitions-store";
 import {
@@ -95,6 +103,7 @@ export default function AgentBuilderPage() {
   const ensureModels = useModelsStore((s) => s.ensureLoaded);
   const mcpConnections = useMcpConnectionsStore((s) => s.data);
   const ensureMcpConnections = useMcpConnectionsStore((s) => s.ensureLoaded);
+  const filesystems = useFilesystemsStore((s) => s.data);
   const ensureAgents = useAgentsStore((s) => s.ensureLoaded);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -258,6 +267,20 @@ export default function AgentBuilderPage() {
     () => z.object({ tool_id: z.string() }),
     [],
   );
+  const FilesystemIdArgs = useMemo(
+    () => z.object({ filesystem_id: z.string() }),
+    [],
+  );
+  const attachedFilesystemIds = useMemo(
+    () =>
+      form
+        ? referencedFilesystemIds(
+            form.prompt,
+            filesystems.map((f) => f.filesystem_id),
+          )
+        : [],
+    [form, filesystems],
+  );
 
   useGetPageData(
     () => ({
@@ -284,8 +307,14 @@ export default function AgentBuilderPage() {
           source: t.source,
           description: t.description,
         })),
+        attached_filesystems: attachedFilesystemIds,
+        available_filesystems: filesystems.map((f) => ({
+          filesystem_id: f.filesystem_id,
+          name: f.name,
+          description: f.description,
+        })),
         note:
-          "You can set any field via the matching set_* action; saving and deleting are user actions. Use add_tool / remove_tool to attach or detach tools by tool_id, or set_tools to replace the full list.",
+          "You can set any field via the matching set_* action; saving and deleting are user actions. Use add_tool / remove_tool to attach or detach tools by tool_id, or set_tools to replace the full list. attach_filesystem / detach_filesystem bind a filesystem memory (prompt snippet + Filesystem tools).",
       },
       actions: {
         set_name: {
@@ -344,9 +373,19 @@ export default function AgentBuilderPage() {
             "Detach a single tool by tool_id. No-op if not currently attached.",
           argsSchema: z.toJSONSchema(SingleToolIdArgs),
         },
+        attach_filesystem: {
+          description:
+            "Attach a filesystem memory: inserts the standard prompt snippet and adds the Filesystem tools. Use available_filesystems for ids.",
+          argsSchema: z.toJSONSchema(FilesystemIdArgs),
+        },
+        detach_filesystem: {
+          description:
+            "Detach a filesystem memory by removing its prompt snippet (tools are left attached).",
+          argsSchema: z.toJSONSchema(FilesystemIdArgs),
+        },
       },
     }),
-    [agent_id, notFound, hydrating, form, toolsById, models, isDirty, PromptArgNamesArgs, ToolIdsArgs, SingleToolIdArgs],
+    [agent_id, notFound, hydrating, form, toolsById, models, isDirty, PromptArgNamesArgs, ToolIdsArgs, SingleToolIdArgs, FilesystemIdArgs, attachedFilesystemIds, filesystems],
   );
 
   useDoPageAction(
@@ -415,11 +454,32 @@ export default function AgentBuilderPage() {
           );
           return { ok: true };
         }
+        case "attach_filesystem": {
+          const parsed = FilesystemIdArgs.parse(args);
+          const fs = filesystems.find(
+            (f) => f.filesystem_id === parsed.filesystem_id,
+          );
+          if (!fs) return { ok: false, error: "unknown filesystem_id" };
+          setField("prompt", attachFilesystemToPrompt(form.prompt, fs));
+          setField(
+            "tools",
+            unionToolIds(form.tools, filesystemToolIds(defaultTools)),
+          );
+          return { ok: true };
+        }
+        case "detach_filesystem": {
+          const parsed = FilesystemIdArgs.parse(args);
+          setField(
+            "prompt",
+            detachFilesystemFromPrompt(form.prompt, parsed.filesystem_id),
+          );
+          return { ok: true };
+        }
         default:
           return { ok: false, error: `unknown action: ${key}` };
       }
     },
-    [form, setField, PromptArgNamesArgs, ToolIdsArgs, SingleToolIdArgs],
+    [form, setField, PromptArgNamesArgs, ToolIdsArgs, SingleToolIdArgs, FilesystemIdArgs, filesystems, defaultTools],
   );
 
   if (notFound) {
@@ -803,6 +863,16 @@ export default function AgentBuilderPage() {
         onOpenChange={setAddToolOpen}
         attachedIds={form.tools}
         onChangeAttached={(ids) => setField("tools", ids)}
+      />
+
+      <AgentFilesystemsSection
+        prompt={form.prompt}
+        tools={form.tools}
+        onChange={(next) => {
+          // Two setField calls: each reads the latest form, so both land.
+          if (next.prompt !== form.prompt) setField("prompt", next.prompt);
+          if (next.tools !== form.tools) setField("tools", next.tools);
+        }}
       />
 
       <BuilderSection

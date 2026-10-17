@@ -7,6 +7,7 @@ import { useApiKeysStore } from "./api-keys-store";
 import { useDataWindowsStore } from "./data-windows-store";
 import { useIntegrationsStore } from "./integrations-store";
 import { useJsonDocumentsStore } from "./json-documents-store";
+import { useFilesystemsStore } from "./filesystems-store";
 import { useStagesStore } from "./stages-store";
 import { useSresStore } from "./sres-store";
 import { useMcpConnectionsStore } from "./mcp-connections-store";
@@ -37,6 +38,7 @@ export function prefetchAllStores() {
     useDataWindowsStore.getState().ensureLoaded(),
     useIntegrationsStore.getState().ensureLoaded(),
     useJsonDocumentsStore.getState().ensureLoaded(),
+    useFilesystemsStore.getState().ensureLoaded(),
     useStagesStore.getState().ensureLoaded(),
     useSresStore.getState().ensureLoaded(),
     useMcpConnectionsStore.getState().ensureLoaded(),

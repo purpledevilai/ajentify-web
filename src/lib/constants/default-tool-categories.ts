@@ -6,6 +6,7 @@ export const DEFAULT_TOOL_CATEGORY_ORDER = [
   "Events",
   "Utility",
   "Memory",
+  "Filesystem",
   "Web Search",
   "Data Window",
   "Gmail",
@@ -47,6 +48,10 @@ export const TOOL_CATEGORY_COPY: Record<
   Memory: {
     description:
       "Read and write JSON documents that persist across turns in a conversation — a structured notepad for user profiles, task lists, or session state. Open or create a document with open_memory_window, inspect its shape with view_memory_shape, then use read_memory, append_memory, write_memory, and delete_memory to work with fields. Best for agents that need durable state beyond a single message.",
+  },
+  Filesystem: {
+    description:
+      "Navigate and edit filesystem memories — trees of folders (each with a description) and text files that persist across conversations and are shared by every agent in your organization. The agent starts at the filesystem's root path (/<filesystem_id>, given in the system prompt), calls list_folder to see names and descriptions, open_file to read only what it needs, and search_filesystem as a fallback. Write tools (create_folder, edit_folder_description, create_file, edit_file, append_file, move_path, delete_path) let it keep the memory current. The easiest way to attach one is the Filesystems section of the agent builder, which adds these tools and the standard prompt snippet together.",
   },
   "Web Search": {
     description:

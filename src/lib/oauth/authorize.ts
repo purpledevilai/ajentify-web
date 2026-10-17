@@ -262,15 +262,14 @@ export type PreviewErrorCode =
 
 /**
  * Decide what to do with a preview error. We may only redirect back to the
- * client for `invalid_scope`, and only when the server has confirmed the
- * `redirect_uri` belongs to the client (`redirect_valid: true` on the error
- * body). Everything else — and an unconfirmed redirect — is an error card.
+ * client for `invalid_scope`: the API validates the client and `redirect_uri`
+ * BEFORE the scopes (`RequestHandlers/OAuthServer/_common.validate_authorize_request`
+ * raises `invalid_client` / `invalid_redirect_uri` first), so an `invalid_scope`
+ * error is itself the server's confirmation that `redirect_uri` belongs to the
+ * client. Every other code is an error card, never a redirect.
  */
 export function previewErrorAction(
-  code: string | undefined,
-  redirectValid: boolean | undefined
+  code: string | undefined
 ): "redirect" | "card" {
-  return code === "invalid_scope" && redirectValid === true
-    ? "redirect"
-    : "card";
+  return code === "invalid_scope" ? "redirect" : "card";
 }

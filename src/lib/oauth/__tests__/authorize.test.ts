@@ -221,16 +221,15 @@ describe("redirect builders", () => {
 });
 
 describe("previewErrorAction", () => {
-  it("only redirects for invalid_scope when the server vouched for redirect_uri", () => {
-    expect(previewErrorAction("invalid_scope", true)).toBe("redirect");
-    expect(previewErrorAction("invalid_scope", false)).toBe("card");
-    expect(previewErrorAction("invalid_scope", undefined)).toBe("card");
+  it("redirects for invalid_scope (the API validates redirect_uri before scopes)", () => {
+    expect(previewErrorAction("invalid_scope")).toBe("redirect");
   });
 
-  it("never redirects for client / redirect / resource errors", () => {
-    expect(previewErrorAction("invalid_client", true)).toBe("card");
-    expect(previewErrorAction("invalid_redirect_uri", true)).toBe("card");
-    expect(previewErrorAction("invalid_resource", true)).toBe("card");
-    expect(previewErrorAction(undefined, true)).toBe("card");
+  it("never redirects for client / redirect / resource / request errors", () => {
+    expect(previewErrorAction("invalid_client")).toBe("card");
+    expect(previewErrorAction("invalid_redirect_uri")).toBe("card");
+    expect(previewErrorAction("invalid_resource")).toBe("card");
+    expect(previewErrorAction("invalid_request")).toBe("card");
+    expect(previewErrorAction(undefined)).toBe("card");
   });
 });

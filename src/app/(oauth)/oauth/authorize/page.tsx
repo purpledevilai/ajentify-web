@@ -127,9 +127,10 @@ function ConsentFlow({ params }: { params: AuthorizeParams }) {
         err,
         "We couldn't verify this authorization request."
       );
-      if (previewErrorAction(code, body?.redirect_valid) === "redirect") {
-        // Server confirmed redirect_uri belongs to the client, so the
-        // client is allowed to learn about the bad scope.
+      if (previewErrorAction(code) === "redirect") {
+        // The API rejects the client / redirect_uri before it checks scopes,
+        // so `invalid_scope` means redirect_uri is valid and the client may
+        // learn about the bad scope.
         setPreview({ status: "redirecting" });
         window.location.replace(
           buildErrorRedirect(
@@ -219,6 +220,7 @@ function ConsentCard({
         oauth_client_id: params.client_id,
         redirect_uri: params.redirect_uri,
         scope: selected.scope,
+        requested_scope: params.scope,
         state: params.state,
         code_challenge: params.code_challenge,
         code_challenge_method: params.code_challenge_method,

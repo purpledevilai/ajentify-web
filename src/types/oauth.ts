@@ -41,6 +41,8 @@ export interface OAuthAuthorizeGrantRequest
   extends OAuthAuthorizePreviewRequest {
   /** Granted scope — may only narrow what the client requested. */
   scope: string;
+  /** The client's original `scope` (raw), so the API can enforce granted ⊆ requested. */
+  requested_scope?: string;
   org_id: string;
 }
 
@@ -49,14 +51,9 @@ export interface OAuthAuthorizeGrantResponse {
   redirect_uri: string;
 }
 
-/**
- * Error body for preview/grant failures. `redirect_valid` is set by the
- * server when it has confirmed `redirect_uri` belongs to the client, which
- * is the only case where the page may forward an error to the client.
- */
+/** Error body for preview/grant failures (the router's `{error, code}` shape). */
 export interface OAuthAuthorizeErrorBody {
   error?: string;
   code?: string;
   error_description?: string;
-  redirect_valid?: boolean;
 }

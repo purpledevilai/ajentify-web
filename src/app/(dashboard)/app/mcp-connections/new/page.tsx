@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ArrowLeft, Check, Loader2, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MCP_QUICK_ADD_PRESETS, type McpQuickAddPreset } from "@/lib/constants/mcp-quick-add";
@@ -182,7 +183,14 @@ export default function NewMcpConnectionPage() {
                   )}
                 >
                   <span className="bg-card ring-border flex size-10 shrink-0 items-center justify-center rounded-md ring-1">
-                    <preset.Logo className="size-6" />
+                    <Image
+                      src={preset.logo}
+                      alt=""
+                      width={24}
+                      height={24}
+                      className="size-6 object-contain"
+                      unoptimized
+                    />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="text-muted-foreground block font-mono text-[10px] tracking-[0.14em] uppercase">

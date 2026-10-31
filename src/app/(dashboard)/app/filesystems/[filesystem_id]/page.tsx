@@ -10,13 +10,21 @@ import {
 } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronLeft, FolderTree, RotateCw } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  Download,
+  FolderInput,
+  FolderTree,
+  RotateCw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useDoPageAction, useGetPageData } from "@ajentify/chat";
 import { Button } from "@/components/primitives/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
+import { FilesystemImportDialog } from "@/components/blocks/filesystem-import-dialog";
 import { ExplorerTree } from "@/components/blocks/filesystem-explorer/explorer-tree";
 import { FolderView } from "@/components/blocks/filesystem-explorer/folder-view";
 import { FileView } from "@/components/blocks/filesystem-explorer/file-view";
@@ -29,6 +37,11 @@ import type { NodeActions } from "@/components/blocks/filesystem-explorer/node-a
 import { useIsMobile } from "@/lib/hooks/use-media-query";
 import { filesystemsApi } from "@/lib/api/filesystems";
 import { ApiError, getErrorCode, getErrorMessage } from "@/lib/api/errors";
+import {
+  downloadBytes,
+  exportFilesystem,
+  type ImportResult,
+} from "@/lib/filesystems/archive";
 import {
   useFilesystemsStore,
   filesystemsActions,
@@ -245,16 +258,68 @@ function FilesystemExplorer() {
   const [pathDialog, setPathDialog] = useState<PathDialogState | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TreeNode | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Internal folder path an "Import folder here" dialog targets; null = closed.
+  const [importTarget, setImportTarget] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const nodeActions: NodeActions = useMemo(
     () => ({
       onNewFolder: (parent) => setPathDialog({ kind: "new-folder", parent }),
       onNewFile: (parent) => setPathDialog({ kind: "new-file", parent }),
+      onImportHere: (folder) => setImportTarget(folder.path),
       onMove: (node) => setPathDialog({ kind: "move", node }),
       onDelete: (node) => setPendingDelete(node),
     }),
     []
   );
+
+  // Header "Import folder": into the selected folder, or the selected file's parent.
+  const importHerePath = selectedNode
+    ? selectedNode.type === "folder"
+      ? selectedNode.path
+      : parentPath(selectedNode.path)
+    : ROOT_PATH;
+
+  async function onImportFinished({
+    result,
+    targetPath,
+  }: {
+    result: ImportResult;
+    targetPath: string;
+  }) {
+    await refreshTree();
+    // Not forced: if a dirty file is open, the normal discard prompt applies.
+    if (targetPath !== selectedPath) navigateTo(targetPath);
+    toast.success(
+      `Imported ${result.folders.created} ${result.folders.created === 1 ? "folder" : "folders"} and ${result.files.created} ${result.files.created === 1 ? "file" : "files"} into ${targetPath}`
+    );
+  }
+
+  async function exportZip() {
+    if (!treeData || exporting) return;
+    setExporting(true);
+    const total = treeData.nodes.filter((n) => n.type === "file").length;
+    const id = toast.loading(`Exporting… 0 / ${total} files`);
+    try {
+      const { bytes, filename } = await exportFilesystem(
+        treeData,
+        (path) =>
+          filesystemsApi
+            .node(filesystemId, path)
+            .then((n) => (n.type === "file" ? n.content : "")),
+        {
+          onProgress: (p) =>
+            toast.loading(`Exporting… ${p.done} / ${p.total} files`, { id }),
+        }
+      );
+      downloadBytes(bytes, filename);
+      toast.success(`Exported ${filename}`, { id });
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Export failed"), { id });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function submitPathDialog(values: PathDialogSubmit) {
     if (!pathDialog) return;
@@ -536,6 +601,26 @@ function FilesystemExplorer() {
           <Button
             variant="ghost"
             size="sm"
+            onClick={() => setImportTarget(importHerePath)}
+            disabled={!selectedNode}
+            aria-label="Import folder"
+          >
+            <FolderInput className="size-4" />
+            <span className="hidden sm:inline">Import folder</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void exportZip()}
+            disabled={treeLoading || exporting || !treeData}
+            aria-label="Export filesystem"
+          >
+            <Download className={exporting ? "size-4 animate-pulse" : "size-4"} />
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => void refreshTree()}
             disabled={treeLoading}
             aria-label="Refresh tree"
@@ -612,6 +697,17 @@ function FilesystemExplorer() {
           sourceType={pathDialog.kind === "move" ? pathDialog.node.type : undefined}
           existingPaths={existingPaths}
           onSubmit={submitPathDialog}
+        />
+      )}
+
+      {importTarget !== null && (
+        <FilesystemImportDialog
+          open
+          onOpenChange={(o) => {
+            if (!o) setImportTarget(null);
+          }}
+          mode={{ kind: "into", filesystemId, targetPath: importTarget }}
+          onFinished={(info) => void onImportFinished(info)}
         />
       )}
 

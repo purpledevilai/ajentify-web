@@ -1,6 +1,13 @@
 "use client";
 
-import { FilePlus2, FolderPlus, MoreHorizontal, PencilLine, Trash2 } from "lucide-react";
+import {
+  FilePlus2,
+  FolderInput,
+  FolderPlus,
+  MoreHorizontal,
+  PencilLine,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/primitives/button";
 import {
   DropdownMenu,
@@ -15,6 +22,8 @@ import { cn } from "@/lib/utils";
 export interface NodeActions {
   onNewFolder: (parent: TreeNode) => void;
   onNewFile: (parent: TreeNode) => void;
+  /** Import a local folder's contents into this folder. */
+  onImportHere: (folder: TreeNode) => void;
   onMove: (node: TreeNode) => void;
   onDelete: (node: TreeNode) => void;
 }
@@ -62,6 +71,10 @@ export function NodeActionsMenu({
               <DropdownMenuItem onClick={() => actions.onNewFile(node)}>
                 <FilePlus2 className="size-4" />
                 New file
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => actions.onImportHere(node)}>
+                <FolderInput className="size-4" />
+                Import folder here…
               </DropdownMenuItem>
             </>
           )}

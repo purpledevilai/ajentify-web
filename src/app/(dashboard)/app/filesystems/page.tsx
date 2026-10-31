@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, FolderTree, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import {
+  CheckSquare,
+  FolderInput,
+  FolderTree,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useDoPageAction, useGetPageData } from "@ajentify/chat";
@@ -12,6 +19,7 @@ import { EmptyState } from "@/components/blocks/empty-state";
 import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
 import { CopyButton } from "@/components/blocks/copy-button";
 import { CreateFilesystemDialog } from "@/components/blocks/create-filesystem-dialog";
+import { FilesystemImportDialog } from "@/components/blocks/filesystem-import-dialog";
 import {
   DataTable,
   type BulkAction,
@@ -43,6 +51,7 @@ export default function FilesystemsPage() {
   const ensureLoaded = useFilesystemsStore((s) => s.ensureLoaded);
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<{
@@ -117,6 +126,11 @@ export default function FilesystemsPage() {
           description: "Open the 'New filesystem' dialog for the user to fill in.",
           argsSchema: { type: "object", properties: {}, additionalProperties: false },
         },
+        open_import_dialog: {
+          description:
+            "Open the 'Import folder' dialog so the user can pick a local folder to import as a new filesystem.",
+          argsSchema: { type: "object", properties: {}, additionalProperties: false },
+        },
       },
     }),
     [data, query, sort, SetSearchArgs, SetSortArgs]
@@ -136,6 +150,10 @@ export default function FilesystemsPage() {
       }
       if (key === "open_new_dialog") {
         setCreateOpen(true);
+        return { ok: true };
+      }
+      if (key === "open_import_dialog") {
+        setImportOpen(true);
         return { ok: true };
       }
       return { ok: false, error: `unknown action: ${key}` };
@@ -280,6 +298,12 @@ export default function FilesystemsPage() {
     []
   );
 
+  const importButton = (
+    <Button variant="outline" onClick={() => setImportOpen(true)}>
+      <FolderInput className="size-4" />
+      Import folder
+    </Button>
+  );
   const newButton = (
     <Button variant="gradient" onClick={() => setCreateOpen(true)}>
       <Plus className="size-4" />
@@ -302,6 +326,7 @@ export default function FilesystemsPage() {
               <CheckSquare className="size-4" />
               {bulkMode ? "Exit bulk select" : "Bulk select"}
             </Button>
+            {importButton}
             {newButton}
           </>
         }
@@ -330,7 +355,12 @@ export default function FilesystemsPage() {
             icon={FolderTree}
             title="No filesystems yet"
             description="A filesystem memory is a tree of folders (each with a description) and text files. Attach one to an agent and it navigates by folder names, opens only the files it needs, and keeps them up to date — a durable, browsable memory you can read and edit here."
-            action={newButton}
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {importButton}
+                {newButton}
+              </div>
+            }
           />
         }
       />
@@ -340,6 +370,15 @@ export default function FilesystemsPage() {
         onOpenChange={setCreateOpen}
         onCreate={(p) => filesystemsActions.create(p)}
         onCreated={(fs) => router.push(`/app/filesystems/${fs.filesystem_id}`)}
+      />
+
+      <FilesystemImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        mode={{ kind: "new" }}
+        onFinished={({ filesystemId }) =>
+          router.push(`/app/filesystems/${filesystemId}`)
+        }
       />
 
       <ConfirmDialog

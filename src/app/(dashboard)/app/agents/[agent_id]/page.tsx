@@ -39,6 +39,7 @@ import { BuilderPageHeader } from "@/components/blocks/builder-page-header";
 import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
 import { AddToolDialog } from "@/components/blocks/add-tool-dialog";
 import { AgentFilesystemsSection } from "@/components/blocks/agent-filesystems-section";
+import { AgentSchedulesSection } from "@/components/blocks/agent-schedules-section";
 import {
   StartSessionDialog,
   type StartSessionConfig,
@@ -873,6 +874,12 @@ export default function AgentBuilderPage() {
           if (next.prompt !== form.prompt) setField("prompt", next.prompt);
           if (next.tools !== form.tools) setField("tools", next.tools);
         }}
+      />
+
+      <AgentSchedulesSection
+        agentId={agent_id}
+        promptArgNames={form.prompt_arg_names}
+        usesPromptArgs={form.uses_prompt_args}
       />
 
       <BuilderSection

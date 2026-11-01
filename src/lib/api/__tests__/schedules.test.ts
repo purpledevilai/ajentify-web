@@ -108,7 +108,7 @@ describe("schedulesApi", () => {
       json: { error: "bad expression", code: "invalid_schedule_expression" },
     }));
     const err = await schedulesApi
-      .create({ agent_id: "ag1", name: "x", schedule_expression: "nope" })
+      .create({ agent_id: "ag1", schedule_expression: "nope" })
       .catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).status).toBe(400);

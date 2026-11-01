@@ -25,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { getErrorCode, getErrorMessage } from "@/lib/api/errors";
+import { useIsMobile } from "@/lib/hooks/use-media-query";
 import { schedulesActions } from "@/lib/stores/schedules-store";
 import {
   WEEKDAYS,
@@ -165,6 +166,7 @@ export function ScheduleDialog({
   // reopens so edit mode pre-fills and create mode starts clean.
   const [session, setSession] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleOpenChange = (next: boolean) => {
     if (submitting) return;
@@ -174,8 +176,22 @@ export function ScheduleDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      {/* Same viewport-bounded layout as the add-tool dialog: the popup is a
+          height-capped flex column (full-screen sheet on mobile), the header
+          and footer are `shrink-0`, and only the form body scrolls. */}
+      <DialogContent
+        className={
+          isMobile
+            ? "fixed inset-0 top-0 left-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 ring-0 data-open:zoom-in-100 data-closed:zoom-out-100"
+            : "flex max-h-[min(85vh,720px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+        }
+      >
+        <DialogHeader
+          className={cn(
+            "border-border shrink-0 border-b px-5 py-4",
+            isMobile && "px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+          )}
+        >
           <DialogTitle>{schedule ? "Edit schedule" : "New schedule"}</DialogTitle>
           <DialogDescription>
             Run this agent automatically on a timer. Each run starts a fresh context with the
@@ -188,6 +204,7 @@ export function ScheduleDialog({
           promptArgNames={promptArgNames}
           usesPromptArgs={usesPromptArgs}
           schedule={schedule}
+          isMobile={isMobile}
           submitting={submitting}
           setSubmitting={setSubmitting}
           onSaved={(s) => {
@@ -206,6 +223,7 @@ interface ScheduleFormProps {
   promptArgNames: string[];
   usesPromptArgs: boolean;
   schedule: ApiSchedule | null;
+  isMobile: boolean;
   submitting: boolean;
   setSubmitting: (v: boolean) => void;
   onSaved: (schedule: ApiSchedule) => void;
@@ -216,11 +234,11 @@ function ScheduleForm({
   promptArgNames,
   usesPromptArgs,
   schedule,
+  isMobile,
   submitting,
   setSubmitting,
   onSaved,
 }: ScheduleFormProps) {
-  const [name, setName] = useState(schedule?.name ?? "");
   const [freq, setFreq] = useState<FrequencyForm>(() =>
     schedule
       ? frequencyFromPreset(expressionToPreset(schedule.schedule_expression))
@@ -245,7 +263,7 @@ function ScheduleForm({
   const preset = useMemo(() => presetFromForm(freq), [freq]);
   const expression = preset ? presetToExpression(preset) : "";
   const plausible = expression.length > 0 && isPlausibleExpression(expression);
-  const canSubmit = name.trim().length > 0 && plausible && !submitting;
+  const canSubmit = plausible && !submitting;
 
   const patch = (p: Partial<FrequencyForm>) => setFreq((f) => ({ ...f, ...p }));
 
@@ -262,7 +280,6 @@ function ScheduleForm({
       ? Object.fromEntries(promptArgNames.map((n) => [n, promptArgs[n] ?? ""]))
       : null;
     const common = {
-      name: name.trim(),
       schedule_expression: expression,
       timezone,
       enabled,
@@ -274,11 +291,11 @@ function ScheduleForm({
       if (schedule) {
         const body: UpdateScheduleParams = common;
         saved = await schedulesActions.update(schedule.schedule_id, body);
-        toast.success(`Updated ${saved.name}`);
+        toast.success("Schedule updated");
       } else {
         const body: CreateScheduleParams = { agent_id: agentId, ...common };
         saved = await schedulesActions.create(body);
-        toast.success(`Created ${saved.name}`);
+        toast.success("Schedule created");
       }
       setSubmitting(false);
       onSaved(saved);
@@ -292,187 +309,187 @@ function ScheduleForm({
 
   return (
     <form
-      className="space-y-4"
+      className="flex min-h-0 flex-1 flex-col"
       onSubmit={(e) => {
         e.preventDefault();
         void handleSubmit();
       }}
     >
-      <div className="space-y-2">
-        <Label htmlFor="schedule-name">Name</Label>
-        <Input
-          id="schedule-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Morning digest"
-          autoFocus
-          maxLength={120}
-        />
-      </div>
+      <div
+        className={cn(
+          "min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4",
+          isMobile && "overscroll-contain px-4 py-3"
+        )}
+      >
+        <div className="space-y-2">
+          <Label htmlFor="schedule-frequency">Frequency</Label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select
+              value={freq.kind}
+              onValueChange={(v) => {
+                if (typeof v === "string") patch({ kind: v as FrequencyKind });
+              }}
+            >
+              <SelectTrigger id="schedule-frequency" className="w-full sm:w-48" aria-label="Frequency">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FREQUENCY_KINDS.map((k) => (
+                  <SelectItem key={k} value={k}>
+                    {FREQUENCY_LABEL[k]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-      <div className="space-y-2">
-        <Label htmlFor="schedule-frequency">Frequency</Label>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {isRate && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">Every</span>
+                <Input
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  aria-label="Interval"
+                  className="w-24"
+                  value={freq.rateValue}
+                  onChange={(e) => patch({ rateValue: e.target.value })}
+                />
+                <span className="text-muted-foreground text-sm">{freq.kind}</span>
+              </div>
+            )}
+
+            {(freq.kind === "daily" || freq.kind === "weekly") && (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-sm">at</span>
+                <Input
+                  type="time"
+                  aria-label="Time"
+                  className="w-32"
+                  value={freq.time}
+                  onChange={(e) => patch({ time: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+
+          {freq.kind === "weekly" && (
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days of the week">
+              {WEEKDAYS.map((d) => {
+                const on = freq.days.includes(d);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => toggleDay(d)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                      on
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {WEEKDAY_SHORT[d]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {freq.kind === "custom" && (
+            <>
+              <Input
+                aria-label="Schedule expression"
+                value={freq.custom}
+                onChange={(e) => patch({ custom: e.target.value })}
+                placeholder="cron(0 9 ? * MON-FRI *)"
+                className="font-mono"
+              />
+              <p className="text-muted-foreground text-xs">
+                EventBridge syntax, e.g. cron(0 9 ? * MON-FRI *)
+              </p>
+            </>
+          )}
+
+          <p className="text-muted-foreground text-xs" data-testid="schedule-preview">
+            {plausible
+              ? describeExpression(expression, timezone)
+              : freq.kind === "weekly" && freq.days.length === 0
+                ? "Pick at least one day."
+                : "Enter a valid frequency."}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="schedule-timezone">Timezone</Label>
           <Select
-            value={freq.kind}
+            value={timezone}
             onValueChange={(v) => {
-              if (typeof v === "string") patch({ kind: v as FrequencyKind });
+              if (typeof v === "string") setTimezone(v);
             }}
           >
-            <SelectTrigger id="schedule-frequency" className="w-full sm:w-48" aria-label="Frequency">
+            <SelectTrigger id="schedule-timezone" className="w-full" aria-label="Timezone">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {FREQUENCY_KINDS.map((k) => (
-                <SelectItem key={k} value={k}>
-                  {FREQUENCY_LABEL[k]}
+              {zones.map((z) => (
+                <SelectItem key={z} value={z}>
+                  {z}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-
-          {isRate && (
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Every</span>
-              <Input
-                type="number"
-                min={1}
-                step={1}
-                inputMode="numeric"
-                aria-label="Interval"
-                className="w-24"
-                value={freq.rateValue}
-                onChange={(e) => patch({ rateValue: e.target.value })}
-              />
-              <span className="text-muted-foreground text-sm">{freq.kind}</span>
-            </div>
-          )}
-
-          {(freq.kind === "daily" || freq.kind === "weekly") && (
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">at</span>
-              <Input
-                type="time"
-                aria-label="Time"
-                className="w-32"
-                value={freq.time}
-                onChange={(e) => patch({ time: e.target.value })}
-              />
-            </div>
-          )}
         </div>
 
-        {freq.kind === "weekly" && (
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Days of the week">
-            {WEEKDAYS.map((d) => {
-              const on = freq.days.includes(d);
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggleDay(d)}
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                    on
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {WEEKDAY_SHORT[d]}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {freq.kind === "custom" && (
-          <>
-            <Input
-              aria-label="Schedule expression"
-              value={freq.custom}
-              onChange={(e) => patch({ custom: e.target.value })}
-              placeholder="cron(0 9 ? * MON-FRI *)"
-              className="font-mono"
-            />
-            <p className="text-muted-foreground text-xs">
-              EventBridge syntax, e.g. cron(0 9 ? * MON-FRI *)
-            </p>
-          </>
-        )}
-
-        <p className="text-muted-foreground text-xs" data-testid="schedule-preview">
-          {plausible
-            ? describeExpression(expression, timezone)
-            : freq.kind === "weekly" && freq.days.length === 0
-              ? "Pick at least one day."
-              : "Enter a valid frequency."}
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="schedule-timezone">Timezone</Label>
-        <Select
-          value={timezone}
-          onValueChange={(v) => {
-            if (typeof v === "string") setTimezone(v);
-          }}
-        >
-          <SelectTrigger id="schedule-timezone" className="w-full" aria-label="Timezone">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {zones.map((z) => (
-              <SelectItem key={z} value={z}>
-                {z}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {usesPromptArgs && promptArgNames.length > 0 && (
-        <div className="space-y-2">
-          <Label>Prompt arguments</Label>
+        {usesPromptArgs && promptArgNames.length > 0 && (
           <div className="space-y-2">
-            {promptArgNames.map((n) => (
-              <div key={n} className="space-y-1">
-                <Label htmlFor={`schedule-arg-${n}`} className="text-muted-foreground text-xs">
-                  {n}
-                </Label>
-                <Input
-                  id={`schedule-arg-${n}`}
-                  value={promptArgs[n] ?? ""}
-                  onChange={(e) => setPromptArgs((a) => ({ ...a, [n]: e.target.value }))}
-                />
-              </div>
-            ))}
+            <Label>Prompt arguments</Label>
+            <div className="space-y-2">
+              {promptArgNames.map((n) => (
+                <div key={n} className="space-y-1">
+                  <Label htmlFor={`schedule-arg-${n}`} className="text-muted-foreground text-xs">
+                    {n}
+                  </Label>
+                  <Input
+                    id={`schedule-arg-${n}`}
+                    value={promptArgs[n] ?? ""}
+                    onChange={(e) => setPromptArgs((a) => ({ ...a, [n]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="space-y-2">
-        <Label htmlFor="schedule-message">Kick-off message</Label>
-        <Textarea
-          id="schedule-message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Optional first message sent to the agent on each run."
-          rows={2}
-        />
+        <div className="space-y-2">
+          <Label htmlFor="schedule-message">Kick-off message</Label>
+          <Textarea
+            id="schedule-message"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Optional first message sent to the agent on each run."
+            rows={2}
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label htmlFor="schedule-enabled">Enabled</Label>
+            <p className="text-muted-foreground text-xs">Disabled schedules never fire.</p>
+          </div>
+          <Switch id="schedule-enabled" checked={enabled} onCheckedChange={(v) => setEnabled(!!v)} />
+        </div>
+
+        {error && <p className="text-destructive text-sm">{error}</p>}
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <Label htmlFor="schedule-enabled">Enabled</Label>
-          <p className="text-muted-foreground text-xs">Disabled schedules never fire.</p>
-        </div>
-        <Switch id="schedule-enabled" checked={enabled} onCheckedChange={(v) => setEnabled(!!v)} />
-      </div>
-
-      {error && <p className="text-destructive text-sm">{error}</p>}
-
-      <DialogFooter className="mt-4">
+      <DialogFooter
+        className={cn(
+          "mx-0 mb-0 shrink-0 rounded-b-xl",
+          isMobile && "rounded-none pb-[max(1rem,env(safe-area-inset-bottom))]"
+        )}
+      >
         <DialogClose
           render={
             <Button type="button" variant="ghost" size="md" disabled={submitting}>

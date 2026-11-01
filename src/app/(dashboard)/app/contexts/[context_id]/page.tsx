@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MessageSquare, Mic } from "lucide-react";
+import { ArrowLeft, MessageSquare, Mic, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { useGetPageData } from "@ajentify/chat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
@@ -153,6 +154,22 @@ function HeaderField({
   );
 }
 
+/** Manual re-fetch for following an agent run; no auto-polling. */
+function RefreshButton({
+  refreshing,
+  onClick,
+}: {
+  refreshing: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button variant="outline" size="sm" disabled={refreshing} onClick={onClick}>
+      <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
+      Refresh
+    </Button>
+  );
+}
+
 export default function ContextDetailPage() {
   const router = useRouter();
   const params = useParams<{ context_id: string }>();
@@ -162,6 +179,11 @@ export default function ContextDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const lastMessageRef = useRef<HTMLDivElement | null>(null);
+  // Set by the bottom Refresh button so the view stays pinned to the newest
+  // message once the re-fetched context has rendered.
+  const scrollToEndRef = useRef(false);
 
   const models = useModelsStore((s) => s.data);
   const ensureModels = useModelsStore((s) => s.ensureLoaded);
@@ -207,6 +229,32 @@ export default function ContextDetailPage() {
       // keep the stale view; the user can reload
     }
   }, [contextId]);
+
+  // User-initiated re-fetch (top/bottom Refresh buttons) while following a
+  // running conversation. `scrollToEnd` keeps the user at the last message.
+  const refresh = useCallback(
+    async (scrollToEnd = false) => {
+      if (!contextId) return;
+      setRefreshing(true);
+      try {
+        const c = await contextsApi.get(contextId, true);
+        scrollToEndRef.current = scrollToEnd;
+        setContext(c);
+      } catch (e) {
+        toast.error(getErrorMessage(e, "Refresh failed"));
+      } finally {
+        setRefreshing(false);
+      }
+    },
+    [contextId],
+  );
+
+  useEffect(() => {
+    if (!scrollToEndRef.current) return;
+    scrollToEndRef.current = false;
+    // jsdom has no layout: scrollIntoView is undefined there.
+    lastMessageRef.current?.scrollIntoView?.({ block: "end" });
+  }, [context]);
 
   const agent = useMemo(
     () => (context ? agents.find((a) => a.agent_id === context.agent_id) : undefined),
@@ -271,29 +319,31 @@ export default function ContextDetailPage() {
           Context
         </h1>
         {!loading && !error && context && (
-          <span
-            className="ml-auto"
-            title={
-              !sessionModelId
-                ? "This context has no model to open a session with"
-                : undefined
-            }
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              className="sm:h-9 sm:px-4"
-              disabled={!canOpen}
-              onClick={() => setSessionOpen(true)}
+          <div className="ml-auto flex items-center gap-2">
+            <RefreshButton refreshing={refreshing} onClick={() => void refresh()} />
+            <span
+              title={
+                !sessionModelId
+                  ? "This context has no model to open a session with"
+                  : undefined
+              }
             >
-              {isRealtime ? (
-                <Mic className="size-4" />
-              ) : (
-                <MessageSquare className="size-4" />
-              )}
-              {isRealtime ? "Voice call" : "Chat"}
-            </Button>
-          </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="sm:h-9 sm:px-4"
+                disabled={!canOpen}
+                onClick={() => setSessionOpen(true)}
+              >
+                {isRealtime ? (
+                  <Mic className="size-4" />
+                ) : (
+                  <MessageSquare className="size-4" />
+                )}
+                {isRealtime ? "Voice call" : "Chat"}
+              </Button>
+            </span>
+          </div>
         )}
       </div>
 
@@ -369,11 +419,21 @@ export default function ContextDetailPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {context.messages.map((m, i) => (
-                  <MessageCard key={i} msg={m} />
+                {context.messages.map((m, i, all) => (
+                  <div
+                    key={i}
+                    ref={i === all.length - 1 ? lastMessageRef : undefined}
+                  >
+                    <MessageCard msg={m} />
+                  </div>
                 ))}
               </div>
             )}
+            {/* Second Refresh so a user reading along can re-fetch without
+                scrolling back to the top. */}
+            <div className="flex justify-center pt-1">
+              <RefreshButton refreshing={refreshing} onClick={() => void refresh(true)} />
+            </div>
           </div>
         </>
       )}

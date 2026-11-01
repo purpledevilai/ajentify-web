@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import type { ApiJob, ApiSchedule } from "@/types/api";
 
 const push = vi.fn();
@@ -15,6 +15,9 @@ vi.mock("sonner", () => ({
     error: (...a: unknown[]) => toastError(...a),
   },
 }));
+
+// jsdom has no matchMedia; the schedule dialog only uses it for layout.
+vi.mock("@/lib/hooks/use-media-query", () => ({ useIsMobile: () => false }));
 
 // Controllable stand-in for the job poll; the hook has its own tests.
 let pollState: { job: ApiJob | null; isPolling: boolean; error: string | null } = {
@@ -50,12 +53,15 @@ vi.mock("@/lib/stores/schedules-store", async (importOriginal) => {
 import { useSchedulesStore } from "@/lib/stores/schedules-store";
 import { AgentSchedulesSection } from "../agent-schedules-section";
 
+/** Row title of the default (unnamed) schedule: its human-readable expression. */
+const TITLE = "Daily at 09:00 (Australia/Melbourne)";
+
 function schedule(over: Partial<ApiSchedule> = {}): ApiSchedule {
   return {
     schedule_id: "s1",
     org_id: "o1",
     agent_id: "ag1",
-    name: "Digest",
+    name: null,
     schedule_expression: "cron(0 9 * * ? *)",
     timezone: "Australia/Melbourne",
     enabled: true,
@@ -93,7 +99,7 @@ beforeEach(() => {
 });
 
 describe("AgentSchedulesSection", () => {
-  it("renders rows from the store with the human summary, last-run link and error badge", () => {
+  it("titles rows by expression (legacy name + summary subtitle), with last-run link and error badge", () => {
     seed([
       schedule(),
       schedule({
@@ -111,10 +117,12 @@ describe("AgentSchedulesSection", () => {
     render(<AgentSchedulesSection agentId="ag1" promptArgNames={[]} usesPromptArgs={false} />);
 
     expect(screen.getByText("Schedules")).toBeInTheDocument();
-    expect(screen.getByText("Digest")).toBeInTheDocument();
-    expect(screen.getByText("Daily at 09:00 (Australia/Melbourne)")).toBeInTheDocument();
+    // Unnamed schedule: the summary is the title and there is no subtitle.
+    const unnamed = within(screen.getByTestId("schedule-row-s1"));
+    expect(unnamed.getAllByText(TITLE)).toHaveLength(1);
     expect(screen.getByText("Never run")).toBeInTheDocument();
 
+    // Legacy named schedule: name as title, summary as subtitle.
     expect(screen.getByText("Hourly")).toBeInTheDocument();
     expect(screen.getByText("Every hour")).toBeInTheDocument();
     expect(screen.getByText("Paused")).toBeInTheDocument();
@@ -134,7 +142,7 @@ describe("AgentSchedulesSection", () => {
     setEnabled.mockResolvedValueOnce(schedule({ enabled: false }));
     render(<AgentSchedulesSection agentId="ag1" promptArgNames={[]} usesPromptArgs={false} />);
 
-    const sw = screen.getByRole("switch", { name: "Enable Digest" });
+    const sw = screen.getByRole("switch", { name: `Enable ${TITLE}` });
     expect(sw).toHaveAttribute("aria-checked", "true");
     fireEvent.click(sw);
     await waitFor(() => expect(setEnabled).toHaveBeenCalledWith("s1", false));
@@ -153,7 +161,7 @@ describe("AgentSchedulesSection", () => {
       <AgentSchedulesSection agentId="ag1" promptArgNames={[]} usesPromptArgs={false} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Actions for Digest" }));
+    fireEvent.click(screen.getByRole("button", { name: `Actions for ${TITLE}` }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Run now" }));
 
     await waitFor(() => expect(run).toHaveBeenCalledWith("s1"));
@@ -183,7 +191,7 @@ describe("AgentSchedulesSection", () => {
     rerender(<AgentSchedulesSection agentId="ag1" promptArgNames={[]} usesPromptArgs={false} />);
 
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledTimes(1));
-    expect(toastSuccess.mock.calls[0][0]).toBe("Ran Digest");
+    expect(toastSuccess.mock.calls[0][0]).toBe(`Ran ${TITLE}`);
     const opts = toastSuccess.mock.calls[0][1] as { action: { onClick: () => void } };
     opts.action.onClick();
     expect(push).toHaveBeenCalledWith("/app/contexts/ctx1");
@@ -202,7 +210,7 @@ describe("AgentSchedulesSection", () => {
     const { rerender } = render(
       <AgentSchedulesSection agentId="ag1" promptArgNames={[]} usesPromptArgs={false} />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Actions for Digest" }));
+    fireEvent.click(screen.getByRole("button", { name: `Actions for ${TITLE}` }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Run now" }));
     await waitFor(() => expect(useJobPoll).toHaveBeenCalledWith("j2"));
 
@@ -223,7 +231,7 @@ describe("AgentSchedulesSection", () => {
 
     await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
     expect(toastError.mock.calls[0]).toEqual([
-      "Digest failed",
+      `${TITLE} failed`,
       { description: "Model exploded" },
     ]);
   });

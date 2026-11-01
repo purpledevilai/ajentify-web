@@ -13,6 +13,9 @@ vi.mock("@/lib/stores/schedules-store", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+// jsdom has no matchMedia; the dialog only uses it to pick its mobile layout.
+vi.mock("@/lib/hooks/use-media-query", () => ({ useIsMobile: () => false }));
+
 import { ScheduleDialog } from "../schedule-dialog";
 
 function schedule(over: Partial<ApiSchedule> = {}): ApiSchedule {
@@ -20,7 +23,7 @@ function schedule(over: Partial<ApiSchedule> = {}): ApiSchedule {
     schedule_id: "s1",
     org_id: "o1",
     agent_id: "ag1",
-    name: "Digest",
+    name: null,
     schedule_expression: "cron(0 9 * * ? *)",
     timezone: "Australia/Melbourne",
     enabled: true,
@@ -67,16 +70,17 @@ describe("ScheduleDialog", () => {
 
     expect(screen.getByText("New schedule")).toBeInTheDocument();
     expect(screen.getByTestId("schedule-preview")).toHaveTextContent(/^Daily at 09:00 \(/);
+    // Schedules no longer have a name.
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
 
+    // The default frequency is already valid, so submit is enabled from the start.
     const submit = screen.getByRole("button", { name: "Create" });
-    expect(submit).toBeDisabled();
+    expect(submit).toBeEnabled();
 
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Morning digest" } });
     fireEvent.change(screen.getByLabelText("topic"), { target: { value: "news" } });
     fireEvent.change(screen.getByLabelText("Kick-off message"), {
       target: { value: "  Go  " },
     });
-    expect(submit).toBeEnabled();
 
     fireEvent.click(submit);
 
@@ -84,12 +88,12 @@ describe("ScheduleDialog", () => {
     const body = create.mock.calls[0][0] as Record<string, unknown>;
     expect(body).toMatchObject({
       agent_id: "ag1",
-      name: "Morning digest",
       schedule_expression: "cron(0 9 * * ? *)",
       enabled: true,
       prompt_args: { topic: "news" },
       message: "Go",
     });
+    expect("name" in body).toBe(false);
     expect(typeof body.timezone).toBe("string");
     expect((body.timezone as string).length).toBeGreaterThan(0);
 
@@ -107,7 +111,6 @@ describe("ScheduleDialog", () => {
         usesPromptArgs={false}
       />
     );
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "x" } });
     fireEvent.change(screen.getByLabelText("Time"), { target: { value: "17:30" } });
     expect(screen.getByTestId("schedule-preview")).toHaveTextContent(/^Daily at 17:30/);
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
@@ -121,7 +124,7 @@ describe("ScheduleDialog", () => {
 
   it("edit: pre-fills from the schedule and calls update with the stored id", async () => {
     const existing = schedule({
-      name: "Weekly",
+      name: "Weekly", // legacy name: not editable, not sent back
       schedule_expression: "cron(15 8 ? * MON,WED *)",
       timezone: "UTC",
       enabled: false,
@@ -138,7 +141,7 @@ describe("ScheduleDialog", () => {
       />
     );
     expect(screen.getByText("Edit schedule")).toBeInTheDocument();
-    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Weekly");
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
     expect((screen.getByLabelText("Time") as HTMLInputElement).value).toBe("08:15");
     expect(screen.getByRole("button", { name: "Mon" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Tue" })).toHaveAttribute("aria-pressed", "false");
@@ -153,12 +156,12 @@ describe("ScheduleDialog", () => {
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
     expect(update.mock.calls[0][0]).toBe("s1");
     expect(update.mock.calls[0][1]).toMatchObject({
-      name: "Weekly",
       schedule_expression: "cron(15 8 ? * MON,WED,FRI *)",
       timezone: "UTC",
       enabled: false,
       message: "hi",
     });
+    expect("name" in (update.mock.calls[0][1] as object)).toBe(false);
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -176,7 +179,6 @@ describe("ScheduleDialog", () => {
         usesPromptArgs={false}
       />
     );
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "x" } });
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
     expect(
       await screen.findByText(/That schedule expression isn't valid\. Unsupported cron field/)

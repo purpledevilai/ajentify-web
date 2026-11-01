@@ -365,7 +365,8 @@ export interface ApiSchedule {
   schedule_id: string;
   org_id: string;
   agent_id: string;
-  name: string;
+  /** Optional legacy label; the UI titles rows by their expression instead. */
+  name: string | null;
   /**
    * EventBridge Scheduler syntax verbatim: `rate(2 hours)` |
    * `cron(0 9 ? * MON-FRI *)` | `at(2026-11-05T09:00:00)`.
@@ -390,7 +391,7 @@ export interface ApiSchedule {
 
 export interface CreateScheduleParams {
   agent_id: string;
-  name: string;
+  name?: string | null;
   schedule_expression: string;
   timezone?: string;
   enabled?: boolean;

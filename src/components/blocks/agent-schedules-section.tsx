@@ -38,6 +38,11 @@ import {
 import { formatRelativeTime } from "@/lib/utils/date";
 import type { ApiSchedule, RunScheduleResult } from "@/types/api";
 
+/** Row title: the legacy `name` when one was stored, else the human summary. */
+function scheduleTitle(s: ApiSchedule): string {
+  return s.name?.trim() || describeExpression(s.schedule_expression, s.timezone);
+}
+
 export interface AgentSchedulesSectionProps {
   agentId: string;
   /** From the builder form so the dialog knows which prompt args to ask for. */
@@ -84,7 +89,7 @@ export function AgentSchedulesSection({
     setDeleting(true);
     try {
       await schedulesActions.remove(pendingDelete.schedule_id);
-      toast.success(`Deleted ${pendingDelete.name}`);
+      toast.success(`Deleted ${scheduleTitle(pendingDelete)}`);
       setPendingDelete(null);
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to delete schedule"));
@@ -156,7 +161,7 @@ export function AgentSchedulesSection({
         onOpenChange={(next) => {
           if (!next) setPendingDelete(null);
         }}
-        title={`Delete ${pendingDelete?.name ?? "schedule"}?`}
+        title={`Delete ${pendingDelete ? scheduleTitle(pendingDelete) : "schedule"}?`}
         description="The schedule stops firing immediately. Contexts it already created are kept."
         confirmLabel="Delete"
         loading={deleting}
@@ -182,6 +187,10 @@ function ScheduleRow({ schedule, onEdit, onDelete }: ScheduleRowProps) {
   const handledRef = useRef<string | null>(null);
 
   const running = starting || jobId !== null;
+  const title = scheduleTitle(schedule);
+  const summary = describeExpression(schedule.schedule_expression, schedule.timezone);
+  // Only show the summary as a subtitle when a legacy name is the title.
+  const subtitle = title === summary ? null : summary;
 
   // Resolve the "Run now" job once it reaches a terminal status (or polling
   // gives up on a 4xx); toast and clear the row's job id.
@@ -198,7 +207,7 @@ function ScheduleRow({ schedule, onEdit, onDelete }: ScheduleRowProps) {
       const result = (job?.result ?? null) as RunScheduleResult | null;
       if (result?.schedule) upsert(result.schedule);
       const contextId = result?.context_id ?? null;
-      toast.success(`Ran ${schedule.name}`, {
+      toast.success(`Ran ${title}`, {
         description: contextId ? "A new context was created." : undefined,
         action: contextId
           ? {
@@ -208,16 +217,16 @@ function ScheduleRow({ schedule, onEdit, onDelete }: ScheduleRowProps) {
           : undefined,
       });
     } else if (status === "error") {
-      toast.error(`${schedule.name} failed`, {
+      toast.error(`${title} failed`, {
         description: job?.error?.message ?? job?.message ?? "The run reported an error.",
       });
     } else {
-      toast.error(`Lost track of the run for ${schedule.name}`, {
+      toast.error(`Lost track of the run for ${title}`, {
         description: pollError ?? undefined,
       });
     }
     setJobId(null);
-  }, [job, jobId, isPolling, pollError, router, schedule.name, upsert]);
+  }, [job, jobId, isPolling, pollError, router, title, upsert]);
 
   const setEnabled = async (enabled: boolean) => {
     setToggling(true);
@@ -260,12 +269,10 @@ function ScheduleRow({ schedule, onEdit, onDelete }: ScheduleRowProps) {
       </div>
       <div className="min-w-0 flex-1 overflow-hidden">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-foreground text-sm font-medium break-words">{schedule.name}</span>
+          <span className="text-foreground text-sm font-medium break-words">{title}</span>
           {!schedule.enabled && <Badge variant="outline">Paused</Badge>}
         </div>
-        <p className="text-muted-foreground mt-0.5 text-xs">
-          {describeExpression(schedule.schedule_expression, schedule.timezone)}
-        </p>
+        {subtitle && <p className="text-muted-foreground mt-0.5 text-xs">{subtitle}</p>}
         <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-xs">
           {lastRun ? (
             schedule.last_context_id ? (
@@ -296,7 +303,7 @@ function ScheduleRow({ schedule, onEdit, onDelete }: ScheduleRowProps) {
         <Switch
           checked={schedule.enabled}
           disabled={toggling}
-          aria-label={`Enable ${schedule.name}`}
+          aria-label={`Enable ${title}`}
           className="mt-0.5"
           onCheckedChange={(v) => void setEnabled(!!v)}
         />
@@ -308,7 +315,7 @@ function ScheduleRow({ schedule, onEdit, onDelete }: ScheduleRowProps) {
                 variant="ghost"
                 size="icon"
                 className="size-8"
-                aria-label={`Actions for ${schedule.name}`}
+                aria-label={`Actions for ${title}`}
               />
             }
           >

@@ -357,6 +357,60 @@ export interface GetMcpConnectionsResponse {
   mcp_connections: ApiMcpConnection[];
 }
 
+// --- Agent schedules ---------------------------------------------------------
+
+export type ScheduleRunStatus = "ok" | "error";
+
+export interface ApiSchedule {
+  schedule_id: string;
+  org_id: string;
+  agent_id: string;
+  /** Optional legacy label; the UI titles rows by their expression instead. */
+  name: string | null;
+  /**
+   * EventBridge Scheduler syntax verbatim: `rate(2 hours)` |
+   * `cron(0 9 ? * MON-FRI *)` | `at(2026-11-05T09:00:00)`.
+   */
+  schedule_expression: string;
+  /** IANA zone, e.g. "Australia/Melbourne". */
+  timezone: string;
+  enabled: boolean;
+  prompt_args: Record<string, string> | null;
+  /** Optional kick-off human message sent before the agent is invoked. */
+  message: string | null;
+  created_by: string;
+  client_id: string;
+  created_at: number;
+  updated_at: number;
+  run_count: number;
+  last_run_at: number | null;
+  last_context_id: string | null;
+  last_status: ScheduleRunStatus | null;
+  last_error: string | null;
+}
+
+export interface CreateScheduleParams {
+  agent_id: string;
+  name?: string | null;
+  schedule_expression: string;
+  timezone?: string;
+  enabled?: boolean;
+  prompt_args?: Record<string, string> | null;
+  message?: string | null;
+}
+
+export type UpdateScheduleParams = Partial<Omit<CreateScheduleParams, "agent_id">>;
+
+export interface GetSchedulesResponse {
+  schedules: ApiSchedule[];
+}
+
+/** `job.result` of the always-async `POST /schedule/{id}/run` job. */
+export interface RunScheduleResult {
+  schedule: ApiSchedule;
+  context_id: string;
+}
+
 // Endpoint 1 (auth resolution) input.
 export interface DiscoverMcpParams {
   mcp_url: string;

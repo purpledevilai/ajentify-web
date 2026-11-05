@@ -40,6 +40,7 @@ import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
 import { AddToolDialog } from "@/components/blocks/add-tool-dialog";
 import { AgentFilesystemsSection } from "@/components/blocks/agent-filesystems-section";
 import { AgentSchedulesSection } from "@/components/blocks/agent-schedules-section";
+import { AgentPhoneNumberSection } from "@/components/blocks/agent-phone-number-section";
 import {
   StartSessionDialog,
   type StartSessionConfig,
@@ -101,6 +102,7 @@ export default function AgentBuilderPage() {
   const paramDefs = usePdStore((s) => s.data);
   const ensurePds = usePdStore((s) => s.ensureLoaded);
   const models = useModelsStore((s) => s.data);
+  const modelsLoaded = useModelsStore((s) => s.loaded);
   const ensureModels = useModelsStore((s) => s.ensureLoaded);
   const mcpConnections = useMcpConnectionsStore((s) => s.data);
   const ensureMcpConnections = useMcpConnectionsStore((s) => s.ensureLoaded);
@@ -880,6 +882,12 @@ export default function AgentBuilderPage() {
         agentId={agent_id}
         promptArgNames={form.prompt_arg_names}
         usesPromptArgs={form.uses_prompt_args}
+      />
+
+      <AgentPhoneNumberSection
+        agentId={agent_id}
+        // Unknown until the models list is in; then "is the picked model realtime".
+        realtime={modelsLoaded ? isRealtime : null}
       />
 
       <BuilderSection

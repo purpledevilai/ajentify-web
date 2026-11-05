@@ -411,6 +411,59 @@ export interface RunScheduleResult {
   context_id: string;
 }
 
+// --- Telephony (phone numbers) -----------------------------------------------
+
+export type PhoneNumberProvider = "twilio";
+/** `ajentify` = number lives in Ajentify's Twilio account; `byo` = the
+ *  customer's own Twilio number pointed at our voice webhook. */
+export type PhoneNumberOwnership = "ajentify" | "byo";
+
+export interface ApiPhoneNumber {
+  phone_number_id: string;
+  org_id: string;
+  /** E.164, e.g. "+61400000000". */
+  phone_number: string;
+  provider: PhoneNumberProvider;
+  ownership: PhoneNumberOwnership;
+  /** Realtime agent that answers calls to this number; null = unattached. */
+  agent_id: string | null;
+  friendly_name: string | null;
+  twilio_account_sid: string | null;
+  twilio_phone_number_sid: string | null;
+  /** The auth token itself is never returned; only whether one is stored. */
+  has_twilio_auth_token: boolean;
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreatePhoneNumberParams {
+  org_id?: string;
+  phone_number: string;
+  /** Required: Ajentify verifies Twilio's X-Twilio-Signature with it. */
+  twilio_auth_token: string;
+  /** Optional `AC…` sid; when set only calls from that account are accepted. */
+  twilio_account_sid?: string | null;
+  agent_id?: string | null;
+  friendly_name?: string | null;
+}
+
+/**
+ * `agent_id: null` detaches; `twilio_account_sid: null` clears the account
+ * restriction. `twilio_auth_token` is replace-only — a BYO row must always
+ * keep a token, so omit it to keep the current one.
+ */
+export interface UpdatePhoneNumberParams {
+  agent_id?: string | null;
+  friendly_name?: string | null;
+  twilio_auth_token?: string;
+  twilio_account_sid?: string | null;
+}
+
+export interface GetPhoneNumbersResponse {
+  phone_numbers: ApiPhoneNumber[];
+}
+
 // Endpoint 1 (auth resolution) input.
 export interface DiscoverMcpParams {
   mcp_url: string;

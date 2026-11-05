@@ -60,7 +60,7 @@ describe("phoneNumbersApi", () => {
     mockFetch();
     await phoneNumbersApi.create({
       org_id: "o1",
-      phone_number: "+61481613228",
+      phone_number: "+61400000000",
       agent_id: "ag1",
       friendly_name: "Front desk",
       twilio_auth_token: "tok123",
@@ -69,7 +69,7 @@ describe("phoneNumbersApi", () => {
     expect(captured[0].url.pathname).toBe("/phone-number");
     expect(captured[0].body).toEqual({
       org_id: "o1",
-      phone_number: "+61481613228",
+      phone_number: "+61400000000",
       agent_id: "ag1",
       friendly_name: "Front desk",
       twilio_auth_token: "tok123",
@@ -104,7 +104,7 @@ describe("phoneNumbersApi", () => {
       json: { error: "phone number already registered", code: "phone_number_exists" },
     }));
     const err = await phoneNumbersApi
-      .create({ org_id: "o1", phone_number: "+61481613228" })
+      .create({ org_id: "o1", phone_number: "+61400000000" })
       .catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).status).toBe(409);

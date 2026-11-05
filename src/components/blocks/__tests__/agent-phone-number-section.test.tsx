@@ -33,7 +33,7 @@ function number(over: Partial<ApiPhoneNumber> = {}): ApiPhoneNumber {
   return {
     phone_number_id: "pn1",
     org_id: "o1",
-    phone_number: "+61481613228",
+    phone_number: "+61400000000",
     provider: "twilio",
     ownership: "byo",
     agent_id: null,
@@ -71,7 +71,7 @@ describe("AgentPhoneNumberSection", () => {
 
     expect(screen.getByText("Phone number")).toBeInTheDocument();
     const row = within(screen.getByTestId("phone-row-pn1"));
-    expect(row.getByText("+61481613228")).toBeInTheDocument();
+    expect(row.getByText("+61400000000")).toBeInTheDocument();
     expect(row.getByText("Front desk")).toBeInTheDocument();
     expect(row.getByText("Your Twilio")).toBeInTheDocument();
     // Another agent's number is neither listed nor offered.
@@ -114,19 +114,19 @@ describe("AgentPhoneNumberSection", () => {
 
     fireEvent.click(screen.getByRole("combobox", { name: "Number to attach" }));
     // base-ui only commits a click on the highlighted option; hover first.
-    const option = await screen.findByRole("option", { name: "+61481613228" });
+    const option = await screen.findByRole("option", { name: "+61400000000" });
     fireEvent.mouseMove(option);
     fireEvent.click(option);
     await waitFor(() =>
       expect(screen.getByRole("combobox", { name: "Number to attach" })).toHaveTextContent(
-        "+61481613228"
+        "+61400000000"
       )
     );
     fireEvent.click(screen.getByRole("button", { name: /Attach number/ }));
 
     await waitFor(() => expect(attach).toHaveBeenCalledWith("pn1", "ag1"));
     await waitFor(() => expect(screen.getByTestId("phone-row-pn1")).toBeInTheDocument());
-    expect(toastSuccess).toHaveBeenCalledWith("Attached +61481613228");
+    expect(toastSuccess).toHaveBeenCalledWith("Attached +61400000000");
   });
 
   it("detaches via phoneNumbersActions.detach and toasts on failure", async () => {

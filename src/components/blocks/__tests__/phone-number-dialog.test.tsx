@@ -39,7 +39,7 @@ function number(over: Partial<ApiPhoneNumber> = {}): ApiPhoneNumber {
   return {
     phone_number_id: "pn1",
     org_id: "o1",
-    phone_number: "+61481613228",
+    phone_number: "+61400000000",
     provider: "twilio",
     ownership: "byo",
     agent_id: null,
@@ -93,12 +93,12 @@ describe("PhoneNumberDialog", () => {
     expect(submit).toBeDisabled();
 
     const input = screen.getByLabelText("Phone number");
-    fireEvent.change(input, { target: { value: "0481 613 228" } });
+    fireEvent.change(input, { target: { value: "0400 000 000" } });
     expect(screen.getByText(/Use E\.164 format/)).toBeInTheDocument();
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(submit).toBeDisabled();
 
-    fireEvent.change(input, { target: { value: "+61 481 613 228" } });
+    fireEvent.change(input, { target: { value: "+61 400 000 000" } });
     expect(screen.queryByText(/Use E\.164 format/)).not.toBeInTheDocument();
     expect(submit).toBeEnabled();
 
@@ -108,7 +108,7 @@ describe("PhoneNumberDialog", () => {
 
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     expect(create.mock.calls[0][0]).toEqual({
-      phone_number: "+61481613228",
+      phone_number: "+61400000000",
       friendly_name: "Front desk",
       twilio_auth_token: "tok",
     });
@@ -118,7 +118,7 @@ describe("PhoneNumberDialog", () => {
 
   it("create: only realtime agents are offered and the pick is sent as agent_id", async () => {
     render(<PhoneNumberDialog open onOpenChange={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+61481613228" } });
+    fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+61400000000" } });
 
     const trigger = screen.getByRole("combobox", { name: "Answering agent" });
     expect(trigger).toHaveTextContent("No agent yet");
@@ -140,7 +140,7 @@ describe("PhoneNumberDialog", () => {
   it("create: surfaces a 409 as 'already registered'", async () => {
     create.mockRejectedValueOnce({ status: 409, body: { error: "already registered" } });
     render(<PhoneNumberDialog open onOpenChange={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+61481613228" } });
+    fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+61400000000" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     expect(await screen.findByText("already registered")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect" })).toBeEnabled();
@@ -152,7 +152,7 @@ describe("PhoneNumberDialog", () => {
       <PhoneNumberDialog open onOpenChange={vi.fn()} phoneNumber={existing} />
     );
     expect(screen.getByText("Edit number")).toBeInTheDocument();
-    expect(screen.getByText("+61481613228")).toBeInTheDocument();
+    expect(screen.getByText("+61400000000")).toBeInTheDocument();
     expect(screen.queryByLabelText("Answering agent")).not.toBeInTheDocument();
     expect((screen.getByLabelText("Friendly name") as HTMLInputElement).value).toBe("Front desk");
 

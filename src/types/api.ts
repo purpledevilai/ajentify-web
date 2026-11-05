@@ -421,7 +421,7 @@ export type PhoneNumberOwnership = "ajentify" | "byo";
 export interface ApiPhoneNumber {
   phone_number_id: string;
   org_id: string;
-  /** E.164, e.g. "+61481613228". */
+  /** E.164, e.g. "+61400000000". */
   phone_number: string;
   provider: PhoneNumberProvider;
   ownership: PhoneNumberOwnership;

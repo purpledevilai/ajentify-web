@@ -35,7 +35,7 @@ function number(over: Partial<ApiPhoneNumber> = {}): ApiPhoneNumber {
   return {
     phone_number_id: "pn1",
     org_id: "o1",
-    phone_number: "+61481613228",
+    phone_number: "+61400000000",
     provider: "twilio",
     ownership: "byo",
     agent_id: null,
@@ -64,7 +64,7 @@ describe("TwilioSetupInstructions", () => {
     render(<TwilioSetupInstructions orgId="o1" phoneNumber={number()} />);
 
     expect(getSecret).toHaveBeenCalledWith("o1");
-    expect(screen.getByText("+61481613228")).toBeInTheDocument();
+    expect(screen.getByText("+61400000000")).toBeInTheDocument();
 
     // Step 1: URL + method.
     const step1 = within(screen.getByTestId("setup-step-1"));

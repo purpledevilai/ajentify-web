@@ -60,36 +60,33 @@ beforeEach(() => {
 });
 
 describe("TwilioSetupInstructions", () => {
-  it("renders the webhook URL, Basic creds (masked) and the URL form, with copy buttons", async () => {
+  it("renders the credentials-in-URL webhook (masked) then the reference creds, with copy buttons", async () => {
     render(<TwilioSetupInstructions orgId="o1" phoneNumber={number()} />);
 
     expect(getSecret).toHaveBeenCalledWith("o1");
     expect(screen.getByText("+61400000000")).toBeInTheDocument();
 
-    // Step 1: URL + method.
+    // Step 1: credentials-in-URL webhook (masked until revealed) + method.
     const step1 = within(screen.getByTestId("setup-step-1"));
-    expect(step1.getByText(WEBHOOK)).toBeInTheDocument();
     expect(step1.getByText("POST")).toBeInTheDocument();
-    expect(step1.getByRole("button", { name: "Copy Webhook URL" })).toBeInTheDocument();
-
-    // Step 2: username is plain; password and URL form masked until revealed.
-    const step2 = within(screen.getByTestId("setup-step-2"));
-    expect(step2.getByText("o1")).toBeInTheDocument();
     await waitFor(() =>
-      expect(step2.getByTestId("setup-field-Password (telephony secret)")).toHaveTextContent(MASK)
+      expect(step1.getByTestId("setup-field-Webhook URL (with credentials)")).toHaveTextContent(MASK)
     );
-    expect(step2.queryByText("s3cret")).not.toBeInTheDocument();
+    fireEvent.click(step1.getByRole("button", { name: "Reveal Webhook URL (with credentials)" }));
+    expect(
+      step1.getByText("https://o1:s3cret@api.test.invalid/telephony/twilio/voice")
+    ).toBeInTheDocument();
+    expect(step1.getByText(/does not apply to Programmable Voice/)).toBeInTheDocument();
+    expect(step1.getByRole("button", { name: "Copy Webhook URL (with credentials)" })).toBeInTheDocument();
 
+    // Step 2: reference creds — plain URL + username visible, password masked until revealed.
+    const step2 = within(screen.getByTestId("setup-step-2"));
+    expect(step2.getByText(WEBHOOK)).toBeInTheDocument();
+    expect(step2.getByText("o1")).toBeInTheDocument();
+    expect(step2.getByTestId("setup-field-Password (telephony secret)")).toHaveTextContent(MASK);
+    expect(step2.queryByText("s3cret")).not.toBeInTheDocument();
     fireEvent.click(step2.getByRole("button", { name: "Reveal Password (telephony secret)" }));
     expect(step2.getByText("s3cret")).toBeInTheDocument();
-
-    fireEvent.click(
-      step2.getByRole("button", { name: "Reveal Alternative: single-field URL with credentials" })
-    );
-    expect(
-      step2.getByText("https://o1:s3cret@api.test.invalid/telephony/twilio/voice")
-    ).toBeInTheDocument();
-    expect(step2.getByText(/auth\.scheme BASIC/)).toBeInTheDocument();
 
     // Copy copies the real secret even while masked.
     fireEvent.click(step2.getByRole("button", { name: "Hide Password (telephony secret)" }));

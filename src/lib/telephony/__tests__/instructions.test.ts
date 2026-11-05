@@ -58,7 +58,7 @@ describe("twilioVoiceWebhookUrlWithBasicAuth", () => {
 });
 
 describe("twilioSetupSteps", () => {
-  it("renders the four steps with the webhook URL, Basic creds and URL form", () => {
+  it("renders the four steps: credentials-in-URL webhook first, then the reference creds", () => {
     const steps = twilioSetupSteps({
       orgId: "org-1",
       secret: "s3cret",
@@ -66,32 +66,30 @@ describe("twilioSetupSteps", () => {
     });
     expect(steps.map((s) => s.title)).toEqual([
       "Point the number at Ajentify",
-      "Add HTTP Basic authentication",
+      "Reference: the credentials in that URL",
       "Optional: verify Twilio's signatures",
       "Call the number",
     ]);
 
     expect(steps[0].fields).toEqual([
       {
-        label: "Webhook URL",
-        value: "https://api.staging.ajentify.com/telephony/twilio/voice",
+        label: "Webhook URL (with credentials)",
+        value: "https://org-1:s3cret@api.staging.ajentify.com/telephony/twilio/voice",
+        secret: true,
         mono: true,
       },
       { label: "HTTP method", value: "POST", mono: true },
     ]);
     expect(steps[0].description).toMatch(/A call comes in/);
     expect(steps[0].description).toMatch(/HTTP POST/);
+    // Twilio's Settings/Rules API does not apply to voice webhooks (verified 2026-11-05).
+    expect(steps[0].note).toMatch(/does not apply to Programmable Voice/);
 
-    const [user, pass, urlForm] = steps[1].fields;
+    const [plain, user, pass] = steps[1].fields;
+    expect(plain).toMatchObject({ value: "https://api.staging.ajentify.com/telephony/twilio/voice", mono: true });
     expect(user).toMatchObject({ value: "org-1", mono: true });
     expect(user.secret).toBeUndefined();
     expect(pass).toMatchObject({ value: "s3cret", secret: true });
-    expect(urlForm).toMatchObject({
-      value: "https://org-1:s3cret@api.staging.ajentify.com/telephony/twilio/voice",
-      secret: true,
-    });
-    expect(steps[1].note).toMatch(/auth\.scheme BASIC/);
-    expect(steps[1].note).toMatch(/Rule/);
 
     expect(steps[2].description).toMatch(/Twilio Auth Token/);
     expect(steps[2].description).toMatch(/SharedKey/);
@@ -101,9 +99,9 @@ describe("twilioSetupSteps", () => {
 
   it("marks secret-dependent fields as pending while the secret loads", () => {
     const steps = twilioSetupSteps({ orgId: "org-1", secret: null, base: "https://x.test" });
-    expect(steps[0].fields[0].value).toBe("https://x.test/telephony/twilio/voice");
-    expect(steps[1].fields[0].value).toBe("org-1");
-    expect(steps[1].fields[1].value).toBe(SECRET_PENDING);
+    expect(steps[0].fields[0].value).toBe(SECRET_PENDING);
+    expect(steps[1].fields[0].value).toBe("https://x.test/telephony/twilio/voice");
+    expect(steps[1].fields[1].value).toBe("org-1");
     expect(steps[1].fields[2].value).toBe(SECRET_PENDING);
   });
 });

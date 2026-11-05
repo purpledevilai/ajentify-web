@@ -161,10 +161,16 @@ function PhoneNumberForm({
   const agents = useAgentsStore((s) => s.data);
   const ensureAgents = useAgentsStore((s) => s.ensureLoaded);
   const models = useModelsStore((s) => s.data);
+  const ensureModels = useModelsStore((s) => s.ensureLoaded);
 
+  // The agent picker only lists agents on a realtime model, so both lists must be
+  // loaded — a direct visit to /app/phone-numbers has neither yet.
   useEffect(() => {
-    if (!editing) ensureAgents().catch(() => {});
-  }, [editing, ensureAgents]);
+    if (!editing) {
+      ensureAgents().catch(() => {});
+      ensureModels().catch(() => {});
+    }
+  }, [editing, ensureAgents, ensureModels]);
 
   const candidates = useMemo(() => realtimeAgents(agents, models), [agents, models]);
 
@@ -180,7 +186,7 @@ function PhoneNumberForm({
   const numberValid = isE164(normalized);
   const numberHint =
     numberTouched && !numberValid
-      ? "Use E.164 format: a + followed by the country code and number, e.g. +61481613228."
+      ? "Use E.164 format: a + followed by the country code and number, e.g. +61400000000."
       : null;
 
   const canSubmit = !submitting && (editing || numberValid);
@@ -244,7 +250,7 @@ function PhoneNumberForm({
               id="phone-number"
               inputMode="tel"
               autoComplete="off"
-              placeholder="+61481613228"
+              placeholder="+61400000000"
               className="font-mono"
               value={number}
               aria-invalid={numberTouched && !numberValid ? true : undefined}

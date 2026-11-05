@@ -89,23 +89,23 @@ export function twilioSetupSteps({ orgId, secret, base }: TwilioSetupInput): Set
     {
       title: "Point the number at Ajentify",
       description:
-        "In the Twilio Console open Phone Numbers → Manage → Active numbers, pick your number and scroll to Voice configuration. Under “A call comes in” choose Webhook, paste the URL below and set the method to HTTP POST.",
+        "In the Twilio Console open Phone Numbers → Manage → Active numbers, pick your number and scroll to Voice configuration. Under “A call comes in” choose Webhook, paste the URL below (it carries your organization's credentials) and set the method to HTTP POST.",
       fields: [
-        { label: "Webhook URL", value: webhookUrl, mono: true },
+        { label: "Webhook URL (with credentials)", value: urlForm, secret: true, mono: true },
         { label: "HTTP method", value: "POST", mono: true },
       ],
+      note:
+        "Ajentify only answers calls that carry these credentials. Twilio's newer Webhooks configuration API (Settings + Rules) does not apply to Programmable Voice call webhooks yet, so the credentials must live in the URL. Rotate the secret from this page if it is ever exposed.",
     },
     {
-      title: "Add HTTP Basic authentication",
+      title: "Reference: the credentials in that URL",
       description:
-        "Ajentify only answers calls that carry your organization's credentials. Set the webhook's authentication to HTTP Basic with the username and password below.",
+        "HTTP Basic, username = your organization id, password = the telephony secret. Shown here in case your tooling sets Basic auth separately from the URL.",
       fields: [
+        { label: "Plain webhook URL", value: webhookUrl, mono: true },
         { label: "Username (organization id)", value: creds.username, mono: true },
         { label: "Password (telephony secret)", value: creds.password, secret: true, mono: true },
-        { label: "Alternative: single-field URL with credentials", value: urlForm, secret: true, mono: true },
       ],
-      note:
-        "If your console has no separate auth field, paste the single-field URL instead — Twilio still honours https://user:pass@host/… . The Webhooks configuration API (a Setting with auth.scheme BASIC plus a Rule for this URL) keeps the secret out of the URL and is the recommended option.",
     },
     {
       title: "Optional: verify Twilio's signatures",

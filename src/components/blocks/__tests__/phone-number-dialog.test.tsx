@@ -93,12 +93,12 @@ describe("PhoneNumberDialog", () => {
     expect(submit).toBeDisabled();
 
     const input = screen.getByLabelText("Phone number");
-    fireEvent.change(input, { target: { value: "0481 613 228" } });
+    fireEvent.change(input, { target: { value: "0400 000 000" } });
     expect(screen.getByText(/Use E\.164 format/)).toBeInTheDocument();
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(submit).toBeDisabled();
 
-    fireEvent.change(input, { target: { value: "+61 481 613 228" } });
+    fireEvent.change(input, { target: { value: "+61 400 000 000" } });
     expect(screen.queryByText(/Use E\.164 format/)).not.toBeInTheDocument();
     expect(submit).toBeEnabled();
 

@@ -411,6 +411,59 @@ export interface RunScheduleResult {
   context_id: string;
 }
 
+// --- Telephony (phone numbers) -----------------------------------------------
+
+export type PhoneNumberProvider = "twilio";
+/** `ajentify` = number lives in Ajentify's Twilio account; `byo` = the
+ *  customer's own Twilio number pointed at our voice webhook. */
+export type PhoneNumberOwnership = "ajentify" | "byo";
+
+export interface ApiPhoneNumber {
+  phone_number_id: string;
+  org_id: string;
+  /** E.164, e.g. "+61481613228". */
+  phone_number: string;
+  provider: PhoneNumberProvider;
+  ownership: PhoneNumberOwnership;
+  /** Realtime agent that answers calls to this number; null = unattached. */
+  agent_id: string | null;
+  friendly_name: string | null;
+  twilio_account_sid: string | null;
+  twilio_phone_number_sid: string | null;
+  /** The auth token itself is never returned; only whether one is stored. */
+  has_twilio_auth_token: boolean;
+  created_by: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface CreatePhoneNumberParams {
+  org_id?: string;
+  phone_number: string;
+  agent_id?: string | null;
+  friendly_name?: string | null;
+  twilio_auth_token?: string | null;
+}
+
+/** `null` detaches the agent / clears the stored auth token. */
+export interface UpdatePhoneNumberParams {
+  agent_id?: string | null;
+  friendly_name?: string | null;
+  twilio_auth_token?: string | null;
+}
+
+export interface GetPhoneNumbersResponse {
+  phone_numbers: ApiPhoneNumber[];
+}
+
+/** Active HTTP Basic password for the org's BYO Twilio webhooks. */
+export interface ApiTelephonySecret {
+  org_id: string;
+  api_key_id: string;
+  secret: string;
+  created_at: number;
+}
+
 // Endpoint 1 (auth resolution) input.
 export interface DiscoverMcpParams {
   mcp_url: string;

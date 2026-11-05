@@ -136,7 +136,7 @@ export default function PhoneNumbersPage() {
           argsSchema: { type: "object", properties: {}, additionalProperties: false },
         },
         open_setup_instructions: {
-          description: "Show the Twilio Console setup instructions (webhook URL and credentials).",
+          description: "Show the Twilio Console setup instructions (voice webhook URL and method).",
           argsSchema: { type: "object", properties: {}, additionalProperties: false },
         },
       },
@@ -381,14 +381,15 @@ export default function PhoneNumbersPage() {
         phoneNumber={editing}
       />
 
-      {orgId && (
-        <TwilioSetupInstructionsDialog
-          open={instructionsOpen}
-          onOpenChange={setInstructionsOpen}
-          orgId={orgId}
-          phoneNumber={instructionsFor}
-        />
-      )}
+      <TwilioSetupInstructionsDialog
+        open={instructionsOpen}
+        onOpenChange={setInstructionsOpen}
+        phoneNumber={instructionsFor}
+        onReplaceToken={(n) => {
+          setInstructionsOpen(false);
+          setEditing(n);
+        }}
+      />
 
       <ConfirmDialog
         open={!!pendingDelete}

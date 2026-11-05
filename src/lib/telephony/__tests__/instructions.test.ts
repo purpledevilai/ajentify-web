@@ -1,12 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import {
-  SECRET_PENDING,
-  apiBaseUrl,
-  twilioBasicCredentials,
-  twilioSetupSteps,
-  twilioVoiceWebhookUrl,
-  twilioVoiceWebhookUrlWithBasicAuth,
-} from "../instructions";
+import { apiBaseUrl, twilioSetupSteps, twilioVoiceWebhookUrl } from "../instructions";
 
 const ORIGINAL_BASE = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -32,76 +25,50 @@ describe("twilioVoiceWebhookUrl", () => {
   });
 });
 
-describe("twilioBasicCredentials", () => {
-  it("uses the org id as username and the telephony secret as password", () => {
-    expect(twilioBasicCredentials("org-1", "s3cret")).toEqual({
-      username: "org-1",
-      password: "s3cret",
-    });
-  });
-});
-
-describe("twilioVoiceWebhookUrlWithBasicAuth", () => {
-  it("builds the legacy https://user:pass@host/… form", () => {
-    expect(
-      twilioVoiceWebhookUrlWithBasicAuth("org-1", "s3cret", "https://api.ajentify.com")
-    ).toBe("https://org-1:s3cret@api.ajentify.com/telephony/twilio/voice");
-  });
-
-  it("percent-encodes characters that would break the userinfo", () => {
-    const url = twilioVoiceWebhookUrlWithBasicAuth("org-1", "p@ss/w:rd", "https://api.ajentify.com");
-    expect(url).toBe("https://org-1:p%40ss%2Fw%3Ard@api.ajentify.com/telephony/twilio/voice");
-    const parsed = new URL(url);
-    expect(decodeURIComponent(parsed.password)).toBe("p@ss/w:rd");
-    expect(parsed.username).toBe("org-1");
-  });
-});
-
 describe("twilioSetupSteps", () => {
-  it("renders the four steps: credentials-in-URL webhook first, then the reference creds", () => {
-    const steps = twilioSetupSteps({
-      orgId: "org-1",
-      secret: "s3cret",
-      base: "https://api.staging.ajentify.com",
-    });
+  it("renders the three steps: token stored, plain webhook URL + POST, call it", () => {
+    const steps = twilioSetupSteps({ base: "https://api.staging.ajentify.com" });
     expect(steps.map((s) => s.title)).toEqual([
+      "Store your Twilio Auth Token in Ajentify",
       "Point the number at Ajentify",
-      "Reference: the credentials in that URL",
-      "Optional: verify Twilio's signatures",
       "Call the number",
     ]);
 
-    expect(steps[0].fields).toEqual([
+    expect(steps[0].fields).toEqual([]);
+    expect(steps[0].description).toMatch(/never shown again/);
+    expect(steps[0].description).toMatch(/Replace Twilio Auth Token/);
+
+    expect(steps[1].fields).toEqual([
       {
-        label: "Webhook URL (with credentials)",
-        value: "https://org-1:s3cret@api.staging.ajentify.com/telephony/twilio/voice",
-        secret: true,
+        label: "Webhook URL",
+        value: "https://api.staging.ajentify.com/telephony/twilio/voice",
         mono: true,
       },
       { label: "HTTP method", value: "POST", mono: true },
     ]);
-    expect(steps[0].description).toMatch(/A call comes in/);
-    expect(steps[0].description).toMatch(/HTTP POST/);
-    // Twilio's Settings/Rules API does not apply to voice webhooks (verified 2026-11-05).
-    expect(steps[0].note).toMatch(/does not apply to Programmable Voice/);
+    expect(steps[1].description).toMatch(/Phone Numbers → Manage → Active numbers/);
+    expect(steps[1].description).toMatch(/A call comes in/);
+    expect(steps[1].description).toMatch(/HTTP POST/);
+    expect(steps[1].note).toMatch(/No authentication to configure/);
+    expect(steps[1].note).toMatch(/replace it here too or calls will be rejected/);
 
-    const [plain, user, pass] = steps[1].fields;
-    expect(plain).toMatchObject({ value: "https://api.staging.ajentify.com/telephony/twilio/voice", mono: true });
-    expect(user).toMatchObject({ value: "org-1", mono: true });
-    expect(user.secret).toBeUndefined();
-    expect(pass).toMatchObject({ value: "s3cret", secret: true });
-
-    expect(steps[2].description).toMatch(/Twilio Auth Token/);
-    expect(steps[2].description).toMatch(/SharedKey/);
     expect(steps[2].fields).toEqual([]);
-    expect(steps[3].fields).toEqual([]);
+    expect(steps[2].description).toMatch(/Attach a realtime agent/);
   });
 
-  it("marks secret-dependent fields as pending while the secret loads", () => {
-    const steps = twilioSetupSteps({ orgId: "org-1", secret: null, base: "https://x.test" });
-    expect(steps[0].fields[0].value).toBe(SECRET_PENDING);
-    expect(steps[1].fields[0].value).toBe("https://x.test/telephony/twilio/voice");
-    expect(steps[1].fields[1].value).toBe("org-1");
-    expect(steps[1].fields[2].value).toBe(SECRET_PENDING);
+  it("never puts credentials into any field", () => {
+    const steps = twilioSetupSteps({ base: "https://x.test" });
+    for (const step of steps) {
+      for (const f of step.fields) {
+        expect(f.value).not.toMatch(/@/);
+        expect(f).not.toHaveProperty("secret");
+      }
+    }
+  });
+
+  it("defaults the base to NEXT_PUBLIC_API_BASE_URL", () => {
+    expect(twilioSetupSteps()[1].fields[0].value).toBe(
+      "https://api.test.invalid/telephony/twilio/voice"
+    );
   });
 });

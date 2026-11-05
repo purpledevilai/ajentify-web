@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { getErrorCode, getErrorMessage } from "@/lib/api/errors";
 import { useIsMobile } from "@/lib/hooks/use-media-query";
 import { useAgentsStore } from "@/lib/stores/agents-store";
@@ -52,9 +51,16 @@ const NO_AGENT = "__none__";
 
 const KNOWN_ERROR_CODES: Record<string, string> = {
   phone_number_exists: "That number is already registered.",
+  phone_number_taken: "That number is already registered.",
   invalid_phone_number: "That number isn't valid E.164.",
   agent_not_realtime: "Only agents on a realtime model can answer calls.",
 };
+
+/** Twilio account sids are `AC` + 32 hex chars. */
+const ACCOUNT_SID_RE = /^AC[0-9a-fA-F]{32}$/;
+export function isTwilioAccountSid(value: string): boolean {
+  return ACCOUNT_SID_RE.test(value.trim());
+}
 
 function friendlyError(err: unknown, fallback: string): string {
   const code = getErrorCode(err);
@@ -78,8 +84,9 @@ export function realtimeAgents(
 
 /**
  * "Connect your own Twilio number" (create) / "Edit number" (update) dialog.
- * Create posts `/phone-number`; edit posts `/phone-number/{id}` with the
- * friendly name and an optional set/clear of the Twilio auth token.
+ * Create posts `/phone-number` with the (required) Twilio Auth Token; edit
+ * posts `/phone-number/{id}` with the friendly name, an optional replacement
+ * token and a set/clear of the Account SID restriction.
  */
 export function PhoneNumberDialog({
   open,
@@ -118,8 +125,8 @@ export function PhoneNumberDialog({
           </DialogTitle>
           <DialogDescription>
             {phoneNumber
-              ? "Change the label or the Twilio auth token Ajentify uses to verify this number's requests."
-              : "Register a number you already own in Twilio. After saving you'll get the webhook URL and credentials to paste into the Twilio Console."}
+              ? "Change the label, replace the Twilio Auth Token Ajentify verifies calls with, or restrict calls to one Twilio account."
+              : "Register a number you already own in Twilio. After saving you'll get the webhook URL to paste into the Twilio Console."}
           </DialogDescription>
         </DialogHeader>
         <PhoneNumberForm
@@ -177,7 +184,7 @@ function PhoneNumberForm({
   const [number, setNumber] = useState("");
   const [friendlyName, setFriendlyName] = useState(phoneNumber?.friendly_name ?? "");
   const [authToken, setAuthToken] = useState("");
-  const [clearToken, setClearToken] = useState(false);
+  const [accountSid, setAccountSid] = useState(phoneNumber?.twilio_account_sid ?? "");
   const [agentId, setAgentId] = useState<string>(defaultAgentId ?? NO_AGENT);
   const [error, setError] = useState<string | null>(null);
 
@@ -189,19 +196,29 @@ function PhoneNumberForm({
       ? "Use E.164 format: a + followed by the country code and number, e.g. +61400000000."
       : null;
 
-  const canSubmit = !submitting && (editing || numberValid);
+  const token = authToken.trim();
+  const tokenValid = token.length > 0;
+
+  const sidTrimmed = accountSid.trim();
+  const sidTouched = sidTrimmed.length > 0;
+  const sidValid = !sidTouched || isTwilioAccountSid(sidTrimmed);
+  const sidHint = sidTouched && !sidValid ? "Account SIDs start with AC and are 34 characters." : null;
+
+  const canSubmit = !submitting && sidValid && (editing || (numberValid && tokenValid));
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
     const name = friendlyName.trim() ? friendlyName.trim() : null;
-    const token = authToken.trim();
     try {
       if (editing) {
         const body: UpdatePhoneNumberParams = { friendly_name: name };
-        if (clearToken) body.twilio_auth_token = null;
-        else if (token) body.twilio_auth_token = token;
+        if (token) body.twilio_auth_token = token;
+        // Empty field clears a stored sid; unchanged is omitted.
+        if (sidTrimmed !== (phoneNumber.twilio_account_sid ?? "")) {
+          body.twilio_account_sid = sidTrimmed ? sidTrimmed : null;
+        }
         const saved = await phoneNumbersActions.update(phoneNumber.phone_number_id, body);
         toast.success("Number updated");
         setSubmitting(false);
@@ -209,9 +226,10 @@ function PhoneNumberForm({
       } else {
         const body: CreatePhoneNumberParams = {
           phone_number: normalized,
+          twilio_auth_token: token,
           friendly_name: name,
         };
-        if (token) body.twilio_auth_token = token;
+        if (sidTrimmed) body.twilio_account_sid = sidTrimmed;
         if (agentId !== NO_AGENT) body.agent_id = agentId;
         const saved = await phoneNumbersActions.create(body);
         toast.success(`Connected ${saved.phone_number}`);
@@ -263,6 +281,43 @@ function PhoneNumberForm({
         )}
 
         <div className="space-y-2">
+          <Label htmlFor="phone-auth-token">
+            {editing ? "Replace Twilio Auth Token" : "Twilio Auth Token"}
+          </Label>
+          <PasswordInput
+            id="phone-auth-token"
+            autoComplete="off"
+            value={authToken}
+            onChange={(e) => setAuthToken(e.target.value)}
+            placeholder={editing ? "Leave blank to keep the stored token" : "Required"}
+          />
+          <p className="text-muted-foreground text-xs">
+            {editing
+              ? "Only needed if you rotated the token in Twilio. The stored token is never shown."
+              : "Twilio Console → Account → API keys & tokens. Ajentify uses it only to verify that calls really come from your Twilio account; it is never shown again."}
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phone-account-sid">Twilio Account SID</Label>
+          <Input
+            id="phone-account-sid"
+            autoComplete="off"
+            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            className="font-mono"
+            value={accountSid}
+            aria-invalid={sidHint ? true : undefined}
+            onChange={(e) => setAccountSid(e.target.value)}
+          />
+          <p className={cn("text-xs", sidHint ? "text-destructive" : "text-muted-foreground")}>
+            {sidHint ??
+              (editing && phoneNumber.twilio_account_sid
+                ? "If set, only calls from this account are accepted. Clear the field to accept any account."
+                : "Optional. If set, only calls from this account are accepted.")}
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="phone-friendly-name">Friendly name</Label>
           <Input
             id="phone-friendly-name"
@@ -270,39 +325,6 @@ function PhoneNumberForm({
             onChange={(e) => setFriendlyName(e.target.value)}
             placeholder="Front desk"
           />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone-auth-token">Twilio auth token</Label>
-          <PasswordInput
-            id="phone-auth-token"
-            autoComplete="off"
-            value={authToken}
-            disabled={clearToken}
-            onChange={(e) => setAuthToken(e.target.value)}
-            placeholder={
-              editing && phoneNumber.has_twilio_auth_token
-                ? "Stored — leave blank to keep"
-                : "Optional"
-            }
-          />
-          <p className="text-muted-foreground text-xs">
-            Optional. Lets Ajentify verify Twilio&apos;s request signatures
-            (X-Twilio-Signature) on top of the HTTP Basic credentials. Found in the
-            Twilio Console under Account → API keys &amp; tokens.
-          </p>
-          {editing && phoneNumber.has_twilio_auth_token && (
-            <div className="flex items-center justify-between gap-4">
-              <Label htmlFor="phone-clear-token" className="text-muted-foreground text-xs font-normal">
-                Clear the stored token
-              </Label>
-              <Switch
-                id="phone-clear-token"
-                checked={clearToken}
-                onCheckedChange={(v) => setClearToken(!!v)}
-              />
-            </div>
-          )}
         </div>
 
         {!editing && (

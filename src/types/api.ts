@@ -440,28 +440,28 @@ export interface ApiPhoneNumber {
 export interface CreatePhoneNumberParams {
   org_id?: string;
   phone_number: string;
+  /** Required: Ajentify verifies Twilio's X-Twilio-Signature with it. */
+  twilio_auth_token: string;
+  /** Optional `AC…` sid; when set only calls from that account are accepted. */
+  twilio_account_sid?: string | null;
   agent_id?: string | null;
   friendly_name?: string | null;
-  twilio_auth_token?: string | null;
 }
 
-/** `null` detaches the agent / clears the stored auth token. */
+/**
+ * `agent_id: null` detaches; `twilio_account_sid: null` clears the account
+ * restriction. `twilio_auth_token` is replace-only — a BYO row must always
+ * keep a token, so omit it to keep the current one.
+ */
 export interface UpdatePhoneNumberParams {
   agent_id?: string | null;
   friendly_name?: string | null;
-  twilio_auth_token?: string | null;
+  twilio_auth_token?: string;
+  twilio_account_sid?: string | null;
 }
 
 export interface GetPhoneNumbersResponse {
   phone_numbers: ApiPhoneNumber[];
-}
-
-/** Active HTTP Basic password for the org's BYO Twilio webhooks. */
-export interface ApiTelephonySecret {
-  org_id: string;
-  api_key_id: string;
-  secret: string;
-  created_at: number;
 }
 
 // Endpoint 1 (auth resolution) input.

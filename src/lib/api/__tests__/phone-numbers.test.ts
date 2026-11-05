@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { configureApiClient, __resetApiClientForTests } from "../client";
-import { phoneNumbersApi, telephonySecretApi } from "../phone-numbers";
+import { phoneNumbersApi } from "../phone-numbers";
 import { ApiError } from "../errors";
 
 interface Captured {
@@ -61,18 +61,20 @@ describe("phoneNumbersApi", () => {
     await phoneNumbersApi.create({
       org_id: "o1",
       phone_number: "+61400000000",
+      twilio_auth_token: "tok123",
+      twilio_account_sid: "AC" + "0".repeat(32),
       agent_id: "ag1",
       friendly_name: "Front desk",
-      twilio_auth_token: "tok123",
     });
     expect(captured[0].method).toBe("POST");
     expect(captured[0].url.pathname).toBe("/phone-number");
     expect(captured[0].body).toEqual({
       org_id: "o1",
       phone_number: "+61400000000",
+      twilio_auth_token: "tok123",
+      twilio_account_sid: "AC" + "0".repeat(32),
       agent_id: "ag1",
       friendly_name: "Front desk",
-      twilio_auth_token: "tok123",
     });
 
     mockFetch();
@@ -80,12 +82,21 @@ describe("phoneNumbersApi", () => {
     expect(captured[0].method).toBe("GET");
     expect(captured[0].url.pathname).toBe("/phone-number/pn1");
 
-    // Update is POST, not PUT; null detaches / clears.
+    // Update is POST, not PUT; null detaches / clears the sid; the token is
+    // replace-only.
     mockFetch();
-    await phoneNumbersApi.update("pn1", { agent_id: null, twilio_auth_token: null });
+    await phoneNumbersApi.update("pn1", {
+      agent_id: null,
+      twilio_auth_token: "n3w",
+      twilio_account_sid: null,
+    });
     expect(captured[0].method).toBe("POST");
     expect(captured[0].url.pathname).toBe("/phone-number/pn1");
-    expect(captured[0].body).toEqual({ agent_id: null, twilio_auth_token: null });
+    expect(captured[0].body).toEqual({
+      agent_id: null,
+      twilio_auth_token: "n3w",
+      twilio_account_sid: null,
+    });
 
     mockFetch();
     await phoneNumbersApi.update("pn1", { agent_id: "ag2" });
@@ -101,31 +112,26 @@ describe("phoneNumbersApi", () => {
   it("surfaces a 409 for an already-registered number as ApiError", async () => {
     mockFetch(() => ({
       status: 409,
-      json: { error: "phone number already registered", code: "phone_number_exists" },
+      json: { error: "phone number already registered", code: "phone_number_taken" },
     }));
     const err = await phoneNumbersApi
-      .create({ org_id: "o1", phone_number: "+61400000000" })
+      .create({ org_id: "o1", phone_number: "+61400000000", twilio_auth_token: "tok" })
       .catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).status).toBe(409);
-    expect(((err as ApiError).body as { code: string }).code).toBe("phone_number_exists");
+    expect(((err as ApiError).body as { code: string }).code).toBe("phone_number_taken");
   });
-});
 
-describe("telephonySecretApi", () => {
-  it("reads and rotates the org telephony secret", async () => {
-    const row = { org_id: "o1", api_key_id: "k1", secret: "s3cret", created_at: 1 };
-    mockFetch(() => ({ json: row }));
-    const got = await telephonySecretApi.get("o1");
-    expect(captured[0].method).toBe("GET");
-    expect(captured[0].url.pathname).toBe("/organization/o1/telephony-secret");
-    expect(got).toEqual(row);
-
-    mockFetch(() => ({ json: { ...row, api_key_id: "k2", secret: "n3w" } }));
-    const rotated = await telephonySecretApi.rotate("o1");
-    expect(captured[0].method).toBe("POST");
-    expect(captured[0].url.pathname).toBe("/organization/o1/telephony-secret/rotate");
-    expect(captured[0].body).toBeUndefined();
-    expect(rotated.secret).toBe("n3w");
+  it("surfaces the 400 for a missing twilio_auth_token", async () => {
+    mockFetch(() => ({
+      status: 400,
+      json: { error: "twilio_auth_token is required" },
+    }));
+    const err = await phoneNumbersApi
+      .create({ org_id: "o1", phone_number: "+61400000000", twilio_auth_token: "" })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(400);
+    expect(((err as ApiError).body as { error: string }).error).toMatch(/twilio_auth_token/);
   });
 });

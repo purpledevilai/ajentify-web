@@ -17,7 +17,9 @@ vi.mock("@/lib/hooks/use-media-query", () => ({ useIsMobile: () => false }));
 // Agents + models come from the real list stores, seeded below.
 import { useAgentsStore } from "@/lib/stores/agents-store";
 import { useModelsStore } from "@/lib/stores/models-store";
-import { PhoneNumberDialog, realtimeAgents } from "../phone-number-dialog";
+import { PhoneNumberDialog, isTwilioAccountSid, realtimeAgents } from "../phone-number-dialog";
+
+const SID = "AC" + "0123456789abcdef".repeat(2);
 
 function agent(over: Partial<ApiAgent> = {}): ApiAgent {
   return {
@@ -83,8 +85,17 @@ describe("realtimeAgents", () => {
   });
 });
 
+describe("isTwilioAccountSid", () => {
+  it("accepts AC + 32 hex and rejects anything else", () => {
+    expect(isTwilioAccountSid(SID)).toBe(true);
+    expect(isTwilioAccountSid(` ${SID} `)).toBe(true);
+    expect(isTwilioAccountSid("AC123")).toBe(false);
+    expect(isTwilioAccountSid("SK" + "0".repeat(32))).toBe(false);
+  });
+});
+
 describe("PhoneNumberDialog", () => {
-  it("create: validates E.164 client-side and posts the normalized number", async () => {
+  it("create: requires an E.164 number and a non-empty auth token, posts both", async () => {
     const onSaved = vi.fn();
     render(<PhoneNumberDialog open onOpenChange={vi.fn()} onSaved={onSaved} />);
 
@@ -98,27 +109,57 @@ describe("PhoneNumberDialog", () => {
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(submit).toBeDisabled();
 
+    // Valid number but no token → still disabled.
     fireEvent.change(input, { target: { value: "+61 400 000 000" } });
     expect(screen.queryByText(/Use E\.164 format/)).not.toBeInTheDocument();
+    expect(submit).toBeDisabled();
+
+    const tokenInput = screen.getByLabelText("Twilio Auth Token");
+    expect(tokenInput).toHaveAttribute("type", "password");
+    expect(screen.getByText(/never shown again/)).toBeInTheDocument();
+    fireEvent.change(tokenInput, { target: { value: "   " } });
+    expect(submit).toBeDisabled();
+    fireEvent.change(tokenInput, { target: { value: " tok " } });
     expect(submit).toBeEnabled();
 
     fireEvent.change(screen.getByLabelText("Friendly name"), { target: { value: "  Front desk " } });
-    fireEvent.change(screen.getByLabelText("Twilio auth token"), { target: { value: "tok" } });
     fireEvent.click(submit);
 
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     expect(create.mock.calls[0][0]).toEqual({
       phone_number: "+61400000000",
-      friendly_name: "Front desk",
       twilio_auth_token: "tok",
+      friendly_name: "Front desk",
     });
+    expect("twilio_account_sid" in (create.mock.calls[0][0] as object)).toBe(false);
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     expect(onSaved.mock.calls[0][1]).toBe("created");
+  });
+
+  it("create: validates the optional Account SID and sends it when set", async () => {
+    render(<PhoneNumberDialog open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+61400000000" } });
+    fireEvent.change(screen.getByLabelText("Twilio Auth Token"), { target: { value: "tok" } });
+    const submit = screen.getByRole("button", { name: "Connect" });
+    expect(submit).toBeEnabled();
+    expect(screen.getByText(/only calls from this account are accepted/)).toBeInTheDocument();
+
+    const sid = screen.getByLabelText("Twilio Account SID");
+    fireEvent.change(sid, { target: { value: "AC123" } });
+    expect(screen.getByText(/start with AC and are 34 characters/)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(sid, { target: { value: SID } });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    expect(create.mock.calls[0][0]).toMatchObject({ twilio_account_sid: SID });
   });
 
   it("create: only realtime agents are offered and the pick is sent as agent_id", async () => {
     render(<PhoneNumberDialog open onOpenChange={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+61400000000" } });
+    fireEvent.change(screen.getByLabelText("Twilio Auth Token"), { target: { value: "tok" } });
 
     const trigger = screen.getByRole("combobox", { name: "Answering agent" });
     expect(trigger).toHaveTextContent("No agent yet");
@@ -133,27 +174,34 @@ describe("PhoneNumberDialog", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
-    expect(create.mock.calls[0][0]).toMatchObject({ agent_id: "ag1", friendly_name: null });
-    expect("twilio_auth_token" in (create.mock.calls[0][0] as object)).toBe(false);
+    expect(create.mock.calls[0][0]).toMatchObject({
+      agent_id: "ag1",
+      friendly_name: null,
+      twilio_auth_token: "tok",
+    });
   });
 
-  it("create: surfaces a 409 as 'already registered'", async () => {
+  it("create: surfaces a 409 as 'already registered' and maps phone_number_taken", async () => {
     create.mockRejectedValueOnce({ status: 409, body: { error: "already registered" } });
     render(<PhoneNumberDialog open onOpenChange={vi.fn()} />);
     fireEvent.change(screen.getByLabelText("Phone number"), { target: { value: "+61400000000" } });
+    fireEvent.change(screen.getByLabelText("Twilio Auth Token"), { target: { value: "tok" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     expect(await screen.findByText("already registered")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect" })).toBeEnabled();
+
+    create.mockRejectedValueOnce({ status: 409, body: { code: "phone_number_taken" } });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    expect(await screen.findByText("That number is already registered.")).toBeInTheDocument();
   });
 
-  it("edit: keeps the token when blank, replaces it when typed, clears it via the switch", async () => {
+  it("edit: keeps the token when blank, replaces it when typed, never clears it", async () => {
     const existing = number();
-    const { rerender } = render(
-      <PhoneNumberDialog open onOpenChange={vi.fn()} phoneNumber={existing} />
-    );
+    render(<PhoneNumberDialog open onOpenChange={vi.fn()} phoneNumber={existing} />);
     expect(screen.getByText("Edit number")).toBeInTheDocument();
     expect(screen.getByText("+61400000000")).toBeInTheDocument();
     expect(screen.queryByLabelText("Answering agent")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
     expect((screen.getByLabelText("Friendly name") as HTMLInputElement).value).toBe("Front desk");
 
     // Blank token → omitted (kept).
@@ -162,19 +210,51 @@ describe("PhoneNumberDialog", () => {
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
     expect(update.mock.calls[0]).toEqual(["pn1", { friendly_name: "Reception" }]);
 
-    // Typed token → replaced.
-    rerender(<PhoneNumberDialog open onOpenChange={vi.fn()} phoneNumber={{ ...existing }} />);
-    fireEvent.change(screen.getByLabelText("Twilio auth token"), { target: { value: "new-tok" } });
+    // Typed token → replaced. (The form remounts after a save, so the
+    // friendly name is back to the prop value.)
+    const tokenInput = screen.getByLabelText("Replace Twilio Auth Token");
+    expect(tokenInput).toHaveAttribute("type", "password");
+    fireEvent.change(tokenInput, { target: { value: "new-tok" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(update).toHaveBeenCalledTimes(2));
     expect(update.mock.calls[1][1]).toEqual({ friendly_name: "Front desk", twilio_auth_token: "new-tok" });
+    expect(create).not.toHaveBeenCalled();
+  });
 
-    // Clear switch → null.
-    fireEvent.click(screen.getByRole("switch", { name: "Clear the stored token" }));
-    expect(screen.getByLabelText("Twilio auth token")).toBeDisabled();
+  it("edit: sets the Account SID, omits it when unchanged, clears it with null when emptied", async () => {
+    const { rerender } = render(
+      <PhoneNumberDialog open onOpenChange={vi.fn()} phoneNumber={number()} />
+    );
+    const sid = screen.getByLabelText("Twilio Account SID");
+    expect((sid as HTMLInputElement).value).toBe("");
+
+    fireEvent.change(sid, { target: { value: SID } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][1]).toEqual({ friendly_name: "Front desk", twilio_account_sid: SID });
+
+    // Stored sid is prefilled; saving without touching it omits the key.
+    rerender(
+      <PhoneNumberDialog
+        open
+        onOpenChange={vi.fn()}
+        phoneNumber={number({ phone_number_id: "pn2", twilio_account_sid: SID })}
+      />
+    );
+    expect((screen.getByLabelText("Twilio Account SID") as HTMLInputElement).value).toBe(SID);
+    expect(screen.getByText(/Clear the field to accept any account/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(2));
+    expect(update.mock.calls[1]).toEqual(["pn2", { friendly_name: "Front desk" }]);
+
+    // Emptied → null. (Re-query: the form remounts after each save.)
+    fireEvent.change(screen.getByLabelText("Twilio Account SID"), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(update).toHaveBeenCalledTimes(3));
-    expect(update.mock.calls[2][1]).toEqual({ friendly_name: "Front desk", twilio_auth_token: null });
-    expect(create).not.toHaveBeenCalled();
+    expect(update.mock.calls[2][1]).toEqual({ friendly_name: "Front desk", twilio_account_sid: null });
+
+    // Invalid sid blocks save.
+    fireEvent.change(screen.getByLabelText("Twilio Account SID"), { target: { value: "nope" } });
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 });

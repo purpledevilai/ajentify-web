@@ -19,7 +19,10 @@ export function middleware(req: NextRequest) {
   ) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", path);
+    // Keep the original query (e.g. `/app/chat/<id>?add_message=…`) so the
+    // deep link survives the login round-trip. `set` URL-encodes it.
+    url.search = "";
+    url.searchParams.set("next", `${path}${req.nextUrl.search}`);
     return NextResponse.redirect(url);
   }
 

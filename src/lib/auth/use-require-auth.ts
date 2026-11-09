@@ -16,6 +16,12 @@ import { wireBillingHandlers } from "@/lib/api/billing-handlers";
 wireApiClientToAuthStore();
 wireBillingHandlers();
 
+/** `pathname` + the current query (`search` with or without the leading `?`). */
+export function buildNextTarget(pathname: string, search: string): string {
+  if (!search) return pathname;
+  return `${pathname}${search.startsWith("?") ? search : `?${search}`}`;
+}
+
 /**
  * Mount in any authenticated layout (dashboard, setup). On cold mount,
  * calls /refresh via the HttpOnly cookie to mint an access token, then
@@ -41,7 +47,14 @@ export function useRequireAuth() {
     if (!bootstrapped && !bootstrapping) {
       bootstrap().then((ok) => {
         if (!ok) {
-          router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+          // Carry the query along (deep links like `?add_message=…`). Read
+          // from `window.location` rather than `useSearchParams()`: this
+          // hook lives in the route-group layouts, and a `useSearchParams`
+          // call there would force a Suspense boundary on every page.
+          // The redirect only ever runs client-side, inside this callback.
+          router.replace(
+            `/login?next=${encodeURIComponent(buildNextTarget(pathname, window.location.search))}`
+          );
         } else {
           syncOrgs();
         }

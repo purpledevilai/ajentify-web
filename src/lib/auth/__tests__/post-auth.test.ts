@@ -56,6 +56,11 @@ describe("resolvePostAuthDestination", () => {
     expect(resolvePostAuthDestination(withOrg, OAUTH_NEXT)).toBe(OAUTH_NEXT);
   });
 
+  it("passes a chat deep link (path + query) through unchanged", () => {
+    const next = "/app/chat/abc?add_message=a";
+    expect(resolvePostAuthDestination(withOrg, next)).toBe(next);
+  });
+
   it("falls back to /app for anything off the allow-list", () => {
     expect(resolvePostAuthDestination(withOrg, "/oauth/token")).toBe("/app");
     expect(resolvePostAuthDestination(withOrg, "https://evil.example")).toBe("/app");

@@ -121,7 +121,6 @@ export function ContextChatSessionDialog({
       storage: "memory" as const,
       clientSideTools,
       themeBridge: "shadcn" as const,
-      beta: true,
       onError: (err: unknown) => console.error("[context-chat]", err),
     }),
     [onAjentifyProxyRequest, clientSideTools]

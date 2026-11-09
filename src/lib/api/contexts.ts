@@ -50,4 +50,6 @@ export const contextsApi = {
    * `apiKeysApi.generate`).
    */
   create: (body: CreateContextParams) => api.post<ApiContext>("/context", body),
+  /** Delete a context by id. */
+  delete: (context_id: string) => api.delete<unknown>(`/context/${context_id}`),
 };

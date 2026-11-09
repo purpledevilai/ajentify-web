@@ -135,7 +135,6 @@ export function AjChatProvider({ children }: { children: React.ReactNode }) {
       config={{
         onAjentifyProxyRequest,
         websocketUrl: chatWebsocketUrl(),
-        beta: true,
         clientSideTools,
         themeBridge: "shadcn",
         onError: (err) => console.error("[ajentify]", err),

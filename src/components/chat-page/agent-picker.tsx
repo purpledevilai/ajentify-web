@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Bot } from "lucide-react";
 import {
   Select,
@@ -28,6 +29,13 @@ export function AgentPicker({
   loading,
   className,
 }: AgentPickerProps) {
+  // base-ui renders the selected *label* (not the raw id) only when it is
+  // given the value → label map up front.
+  const items = useMemo(
+    () => agents.map((a) => ({ value: a.agent_id, label: a.agent_name })),
+    [agents]
+  );
+
   if (!loading && agents.length === 0) {
     return (
       <p className={cn("text-muted-foreground text-sm", className)}>
@@ -37,6 +45,7 @@ export function AgentPicker({
   }
   return (
     <Select
+      items={items}
       value={value ?? ""}
       onValueChange={(v) => {
         if (typeof v === "string" && v) onChange(v);

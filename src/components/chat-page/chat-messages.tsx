@@ -79,7 +79,8 @@ export function ChatMessages({
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
+    // jsdom has no layout: scrollTo is undefined there.
+    el.scrollTo?.({ top: el.scrollHeight, behavior });
   }, []);
 
   // Follow new content while pinned to the bottom.

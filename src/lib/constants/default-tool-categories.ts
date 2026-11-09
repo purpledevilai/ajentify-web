@@ -5,6 +5,7 @@
 export const DEFAULT_TOOL_CATEGORY_ORDER = [
   "Events",
   "Utility",
+  "Agents",
   "Memory",
   "Filesystem",
   "Web Search",
@@ -44,6 +45,11 @@ export const TOOL_CATEGORY_COPY: Record<
   Utility: {
     description:
       "General helpers for grounding and reasoning. get_time gives the model an accurate clock, optionally in a specific timezone, for scheduling and time-aware answers. think provides a scratch-pad step for longer reasoning chains before the agent replies or calls other tools.",
+  },
+  Agents: {
+    title: "Delegate to other agents",
+    description:
+      "Let this agent hand work to other agents in your organization and carry on while they work. create_context starts a fresh conversation with another agent (by agent id) and returns its context_id; send_context_message drops a message into that conversation and runs it. With await_response set, the other agent's reply comes back later as a send_context_message_response tool result and this agent picks up where it left off — so it can delegate several tasks in parallel, keep talking to the user, and report back when answers land. Chats built with @ajentify/chat show the sub-agent's progress inline. Tell the agent in its prompt which agent ids it may delegate to and when to wait for a reply.",
   },
   Memory: {
     description:

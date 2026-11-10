@@ -429,9 +429,13 @@ function ChatPageInner({
     ? (chat.agent?.agent_name ?? pickedAgent?.agent_name ?? "New chat")
     : (chat.agent?.agent_name ?? historyAgentName ?? "Conversation");
 
+  // NB: the SDK defines `isPreparingNewChat = creating || isDraft`, so on its own
+  // it would disable the composer for the whole draft state — exactly when the
+  // first send has to happen (it materialises the context). Only block while
+  // `create_context` is actually in flight.
   const composerDisabled =
     chat.status === "connecting" ||
-    chat.isPreparingNewChat ||
+    (chat.isPreparingNewChat && !chat.isDraft) ||
     (isNewChat && chat.isDraft && !selectedAgentId) ||
     opening ||
     !!failure;

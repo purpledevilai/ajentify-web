@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 // ---------------------------------------------------------------------------
@@ -63,7 +63,8 @@ vi.mock("@ajentify/chat", () => ({
     hasContext: !!sdk.liveContextId || sdk.status === "draft",
     error: null,
     isDraft: sdk.status === "draft",
-    isPreparingNewChat: false,
+    // Mirrors the real SDK (`creating || isDraft`) — a draft counts as "preparing".
+    isPreparingNewChat: sdk.status === "draft",
     isWaitingForResponse: false,
     subagentRuns: {},
     canCancel: sdk.status === "streaming",
@@ -162,6 +163,18 @@ describe("ChatPage — new chat (/app/chat)", () => {
     expect(picker).toHaveTextContent("Concierge");
     expect(picker).not.toHaveTextContent("Voice bot");
     expect(sdk.switchTo).not.toHaveBeenCalled();
+  });
+
+  it("lets the user send the first message while in draft (the send materialises the context)", async () => {
+    sdk.status = "draft";
+    render(<ChatPage />);
+    const box = screen.getByRole("textbox", { name: "Message" });
+    expect(box).not.toBeDisabled();
+    fireEvent.change(box, { target: { value: "hello" } });
+    const sendBtn = screen.getByRole("button", { name: "Send message" });
+    expect(sendBtn).not.toBeDisabled();
+    fireEvent.click(sendBtn);
+    expect(sdk.send).toHaveBeenCalledWith("hello");
   });
 
   it("moves the URL to /app/chat/<id> once the draft materialises, without remounting", () => {

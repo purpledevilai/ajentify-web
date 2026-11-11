@@ -353,6 +353,35 @@ describe("ChatPage — ?add_message deep link", () => {
     expect(sdk.send).toHaveBeenCalledTimes(1);
   });
 
+  it("waits for switchTo to fully resolve (message hydration) before sending — not just status=connected", async () => {
+    nav.search = "add_message=Mediterranean";
+    let resolveSwitch!: () => void;
+    sdk.switchTo.mockImplementation(
+      () =>
+        new Promise<void>((r) => {
+          resolveSwitch = r;
+        })
+    );
+    const { rerender } = await renderExisting("ctx1");
+    expect(sdk.switchTo).toHaveBeenCalledWith("ctx1");
+
+    // The SDK reports `connected` before it hydrates the server messages;
+    // sending here would get wiped by the hydration.
+    sdk.liveContextId = "ctx1";
+    sdk.status = "connected";
+    await act(async () => {
+      rerender(<ChatPage contextId="ctx1" />);
+    });
+    expect(sdk.send).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveSwitch();
+    });
+    expect(sdk.send).toHaveBeenCalledTimes(1);
+    expect(sdk.send).toHaveBeenCalledWith("Mediterranean");
+    expect(router.replace).toHaveBeenCalledWith("/app/chat/ctx1");
+  });
+
   it("does not send a wrong context's message (URL and live id must match)", async () => {
     nav.search = "add_message=hi";
     sdk.liveContextId = "ctx1"; // stale live context from before navigation

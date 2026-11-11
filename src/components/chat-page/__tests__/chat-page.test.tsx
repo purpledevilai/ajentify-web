@@ -18,7 +18,7 @@ type Status =
 
 // `vi.mock` factories are hoisted above imports, so everything they close
 // over has to be hoisted too.
-const { router, nav, toast, sdk, agents } = vi.hoisted(() => {
+const { router, nav, toast, sdk, agents, org, auth, contextsGet } = vi.hoisted(() => {
   const router = { push: vi.fn(), replace: vi.fn() };
   const nav = { pathname: "/app/chat", search: "" };
   const toast = { error: vi.fn(), success: vi.fn() };
@@ -42,7 +42,18 @@ const { router, nav, toast, sdk, agents } = vi.hoisted(() => {
     { agent_id: "ag1", agent_name: "Concierge", model_id: "gpt" },
     { agent_id: "ag2", agent_name: "Voice bot", model_id: "rt" },
   ];
-  return { router, nav, toast, sdk, agents };
+  // Org / auth stores + the access-gate fetch (`GET /context/{id}`).
+  const org = {
+    activeOrgId: "org1" as string | null,
+    organizations: [
+      { id: "org1", name: "Org One" },
+      { id: "org2", name: "Org Two" },
+    ],
+    setActiveOrg: vi.fn(),
+  };
+  const auth = { user: { email: "me@example.com" }, logout: vi.fn() };
+  const contextsGet = vi.fn(async (id: string) => ({ context_id: id, org_id: "org1" }));
+  return { router, nav, toast, sdk, agents, org, auth, contextsGet };
 });
 
 vi.mock("next/navigation", () => ({
@@ -107,13 +118,16 @@ vi.mock("@/lib/stores/models-store", () => ({
 }));
 vi.mock("@/lib/stores/org-store", () => ({
   useOrgStore: Object.assign(
-    (sel: (s: unknown) => unknown) => sel({ activeOrgId: "org1" }),
-    { getState: () => ({ activeOrgId: "org1" }) }
+    (sel: (s: unknown) => unknown) => sel(org),
+    { getState: () => org }
   ),
+}));
+vi.mock("@/lib/stores/auth-store", () => ({
+  useAuthStore: (sel: (s: unknown) => unknown) => sel(auth),
 }));
 vi.mock("@/lib/api/client", () => ({ api: { get: vi.fn() } }));
 vi.mock("@/lib/api/contexts", () => ({
-  contextsApi: { get: vi.fn(), create: vi.fn(), delete: vi.fn() },
+  contextsApi: { get: contextsGet, create: vi.fn(), delete: vi.fn() },
 }));
 vi.mock("@/lib/api/api-keys", () => ({ apiKeysApi: { generate: vi.fn() } }));
 
@@ -146,8 +160,21 @@ beforeEach(() => {
   sdk.switchTo.mockImplementation(async () => {});
   nav.pathname = "/app/chat";
   nav.search = "";
+  org.activeOrgId = "org1";
+  org.setActiveOrg.mockReset();
+  auth.logout.mockReset();
+  contextsGet.mockReset();
+  contextsGet.mockImplementation(async (id: string) => ({ context_id: id, org_id: "org1" }));
   window.localStorage.clear();
 });
+
+/** Render a `/app/chat/<id>` route and let the access gate's GET resolve. */
+async function renderExisting(id: string) {
+  nav.pathname = `/app/chat/${id}`;
+  const utils = render(<ChatPage contextId={id} />);
+  await act(async () => {});
+  return utils;
+}
 
 // ---------------------------------------------------------------------------
 
@@ -198,9 +225,20 @@ describe("ChatPage — new chat (/app/chat)", () => {
 });
 
 describe("ChatPage — existing conversation (/app/chat/[id])", () => {
-  it("switches to the route's context exactly once and shows a skeleton while connecting", () => {
+  it("gates on GET /context first, then switches exactly once and shows a skeleton while connecting", async () => {
     nav.pathname = "/app/chat/ctx1";
+    type Ctx = { context_id: string; org_id: string };
+    let resolveGet!: (v: Ctx) => void;
+    contextsGet.mockImplementation(() => new Promise<Ctx>((r) => (resolveGet = r)));
     const { rerender } = render(<ChatPage contextId="ctx1" />);
+    // Gate pending: no SDK connect yet, skeleton shown.
+    expect(contextsGet).toHaveBeenCalledWith("ctx1", true);
+    expect(sdk.switchTo).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull();
+
+    await act(async () => {
+      resolveGet({ context_id: "ctx1", org_id: "org1" });
+    });
     expect(sdk.switchTo).toHaveBeenCalledTimes(1);
     expect(sdk.switchTo).toHaveBeenCalledWith("ctx1");
     expect(sdk.createNew).not.toHaveBeenCalled();
@@ -219,18 +257,59 @@ describe("ChatPage — existing conversation (/app/chat/[id])", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Concierge");
   });
 
-  it("shows 'Conversation not found' when the context 404s", async () => {
-    nav.pathname = "/app/chat/missing";
-    sdk.switchTo.mockImplementation(async () => {
-      throw new Error("get_context callback failed", {
-        cause: new ApiError(404, { error: "not found" }),
-      });
+  it("shows 'Conversation not found' when the context 404s (never connects)", async () => {
+    contextsGet.mockImplementation(async () => {
+      throw new ApiError(404, { error: "not found" });
     });
-    render(<ChatPage contextId="missing" />);
+    await renderExisting("missing");
     expect(await screen.findByText("Conversation not found")).toBeInTheDocument();
+    expect(sdk.switchTo).not.toHaveBeenCalled();
     // The empty state's own CTA, in addition to the rail's "New chat".
     expect(screen.getAllByRole("button", { name: /New chat/ }).length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull();
+  });
+
+  it("403 → names the signed-in account and offers to sign in with another, preserving the deep link", async () => {
+    contextsGet.mockImplementation(async () => {
+      throw new ApiError(403, { error: "Context does not belong to user" });
+    });
+    nav.search = "add_message=Mexican";
+    await renderExisting("theirs");
+    expect(
+      await screen.findByText("This conversation isn't available to this account")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/signed in as me@example\.com/)).toBeInTheDocument();
+    expect(sdk.switchTo).not.toHaveBeenCalled();
+    expect(sdk.send).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Sign in with a different account/ }));
+    expect(auth.logout).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledWith(
+      `/login?next=${encodeURIComponent("/app/chat/theirs?add_message=Mexican")}`
+    );
+  });
+
+  it("switches the active org to the context's org before connecting", async () => {
+    contextsGet.mockImplementation(async (id: string) => ({ context_id: id, org_id: "org2" }));
+    await renderExisting("other-org");
+    expect(org.setActiveOrg).toHaveBeenCalledWith("org2");
+    // The page remounts under the new org (keyed in ChatLayout); nothing connects before that.
+    expect(sdk.switchTo).not.toHaveBeenCalled();
+  });
+
+  it("does not switch org when the user isn't a member of the context's org", async () => {
+    contextsGet.mockImplementation(async (id: string) => ({ context_id: id, org_id: "org-foreign" }));
+    await renderExisting("public-ctx");
+    expect(org.setActiveOrg).not.toHaveBeenCalled();
+    expect(sdk.switchTo).toHaveBeenCalledWith("public-ctx");
+  });
+
+  it("skips the gate for a context the store already holds (draft just materialised)", async () => {
+    sdk.liveContextId = "ctx1";
+    sdk.status = "connected";
+    await renderExisting("ctx1");
+    expect(contextsGet).not.toHaveBeenCalled();
+    expect(sdk.switchTo).not.toHaveBeenCalled();
   });
 
   it("starts a fresh draft when navigating back to /app/chat", () => {
@@ -251,10 +330,10 @@ describe("ChatPage — existing conversation (/app/chat/[id])", () => {
 
 describe("ChatPage — ?add_message deep link", () => {
   it("sends once after the context is connected, then strips the param", async () => {
-    nav.pathname = "/app/chat/ctx1";
     nav.search = "add_message=a%29%20Mexican";
-    const { rerender } = render(<ChatPage contextId="ctx1" />);
-    // Still connecting: nothing sent yet.
+    const { rerender } = await renderExisting("ctx1");
+    // Gate passed, still connecting: nothing sent yet.
+    expect(sdk.switchTo).toHaveBeenCalledWith("ctx1");
     expect(sdk.send).not.toHaveBeenCalled();
 
     sdk.liveContextId = "ctx1";
@@ -274,12 +353,11 @@ describe("ChatPage — ?add_message deep link", () => {
     expect(sdk.send).toHaveBeenCalledTimes(1);
   });
 
-  it("does not send a wrong context's message (URL and live id must match)", () => {
-    nav.pathname = "/app/chat/ctx2";
+  it("does not send a wrong context's message (URL and live id must match)", async () => {
     nav.search = "add_message=hi";
     sdk.liveContextId = "ctx1"; // stale live context from before navigation
     sdk.status = "connected";
-    render(<ChatPage contextId="ctx2" />);
+    await renderExisting("ctx2");
     expect(sdk.send).not.toHaveBeenCalled();
     expect(sdk.switchTo).toHaveBeenCalledWith("ctx2");
   });

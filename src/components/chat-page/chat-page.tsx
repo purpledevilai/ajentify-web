@@ -10,7 +10,7 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { History, MessageSquare, Plus } from "lucide-react";
+import { History, LogIn, MessageSquare, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   AjentifyProvider,
@@ -29,6 +29,7 @@ import { api } from "@/lib/api/client";
 import { contextsApi } from "@/lib/api/contexts";
 import { apiKeysApi } from "@/lib/api/api-keys";
 import { ApiError, getErrorMessage } from "@/lib/api/errors";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAgentsStore } from "@/lib/stores/agents-store";
 import { useModelsStore } from "@/lib/stores/models-store";
 import { useOrgStore } from "@/lib/stores/org-store";
@@ -41,7 +42,7 @@ import {
   writeLastAgentId,
 } from "@/lib/chat-page/helpers";
 import { cn } from "@/lib/utils";
-import type { ApiAgent } from "@/types/api";
+import type { ApiAgent, ApiContext } from "@/types/api";
 
 import { AgentPicker } from "./agent-picker";
 import { ChatComposer } from "./chat-composer";
@@ -109,12 +110,20 @@ export function ChatPage({ contextId }: ChatPageProps) {
     agentIdRef.current = selectedAgentId;
   }, [selectedAgentId]);
   const clientIdRef = useRef<string | null>(null);
+  // The access gate (see `useContextGate`) already fetched the route's context;
+  // hand that copy to the SDK's `get_context` once instead of fetching twice.
+  const preflightRef = useRef<ApiContext | null>(null);
 
   const onAjentifyProxyRequest = useCallback(
     async (request: AjentifyProxyRequest): Promise<unknown> => {
       switch (request.type) {
         case "get_context": {
-          const ctx = await contextsApi.get(request.contextId, true);
+          const cached = preflightRef.current;
+          preflightRef.current = null;
+          const ctx =
+            cached && cached.context_id === request.contextId
+              ? cached
+              : await contextsApi.get(request.contextId, true);
           clientIdRef.current = ctx.client_id ?? null;
           return ctx;
         }
@@ -173,6 +182,7 @@ export function ChatPage({ contextId }: ChatPageProps) {
       <Suspense fallback={<ChatPageSkeleton />}>
         <ChatPageInner
           routeContextId={contextId}
+          preflightRef={preflightRef}
           agents={chatAgents}
           agentsLoading={agentsLoading && !agentsLoaded}
           agentsLoaded={agentsLoaded}
@@ -188,6 +198,7 @@ export function ChatPage({ contextId }: ChatPageProps) {
 
 interface InnerProps {
   routeContextId?: string;
+  preflightRef: React.MutableRefObject<ApiContext | null>;
   agents: ApiAgent[];
   agentsLoading: boolean;
   agentsLoaded: boolean;
@@ -211,6 +222,80 @@ function apiStatusOf(err: unknown): number | null {
   return null;
 }
 
+type Gate =
+  | { id: string; state: "checking" }
+  | { id: string; state: "ok" }
+  | { id: string; state: "denied"; notFound: boolean }
+  | { id: string; state: "error"; message: string };
+
+/**
+ * Access gate for `/app/chat/[context_id]` (deep links from emails land here,
+ * often in the wrong account or org). Before the SDK connects:
+ *   1. `GET /context/{id}` as the signed-in user → 403/404 = "not yours";
+ *   2. if the context belongs to another org the user is in, make that org
+ *      active (the WS token is minted for the *active* org, so this is
+ *      required, not cosmetic — `ChatLayout` re-keys the page on the switch);
+ *   3. otherwise hand the fetched context to the SDK (`preflightRef`) and open.
+ * Skipped when the store already holds the route's context (a draft that just
+ * materialised).
+ */
+function useContextGate(
+  routeContextId: string | undefined,
+  liveContextId: string | null,
+  preflightRef: React.MutableRefObject<ApiContext | null>
+): Gate | null {
+  // Only the async outcome lives in state; "no route" / "already live" /
+  // "checking" are derived so the effect never sets state synchronously.
+  const [result, setResult] = useState<Gate | null>(null);
+  const organizations = useOrgStore((s) => s.organizations);
+  const activeOrgId = useOrgStore((s) => s.activeOrgId);
+  const setActiveOrg = useOrgStore((s) => s.setActiveOrg);
+
+  useEffect(() => {
+    if (!routeContextId || liveContextId === routeContextId) return;
+    const id = routeContextId;
+    let cancelled = false;
+    const setGate = (g: Gate) => setResult(g);
+    contextsApi
+      .get(id, true)
+      .then((ctx) => {
+        if (cancelled) return;
+        const org = ctx.org_id;
+        if (org && org !== activeOrgId && organizations.some((o) => o.id === org)) {
+          // Switch org first; the page remounts (keyed on org) and re-runs this gate.
+          setActiveOrg(org);
+          return;
+        }
+        preflightRef.current = ctx;
+        setGate({ id, state: "ok" });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const status = apiStatusOf(err);
+        if (status === 403 || status === 404) {
+          setGate({ id, state: "denied", notFound: status === 404 });
+        } else {
+          setGate({
+            id,
+            state: "error",
+            message: getErrorMessage(err, "Couldn't open this conversation."),
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // `liveContextId` intentionally omitted: the gate runs when the URL changes,
+    // not every time the store id moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeContextId, activeOrgId, organizations, setActiveOrg, preflightRef]);
+
+  if (!routeContextId) return null;
+  if (liveContextId === routeContextId) return { id: routeContextId, state: "ok" };
+  if (result && result.id === routeContextId) return result;
+  return { id: routeContextId, state: "checking" };
+}
+
 const BUSY: ReadonlySet<ConnectionStatus> = new Set<ConnectionStatus>([
   "streaming",
   "awaiting_tool_responses",
@@ -223,6 +308,7 @@ const SENDABLE: ReadonlySet<ConnectionStatus> = new Set<ConnectionStatus>([
 
 function ChatPageInner({
   routeContextId,
+  preflightRef,
   agents,
   agentsLoading,
   agentsLoaded,
@@ -249,6 +335,8 @@ function ChatPageInner({
   // The current store's id is set synchronously by `switchTo` / on draft
   // materialisation — the right thing to compare the URL against.
   const liveContextId = useCurrentContext((s) => s.contextId);
+  const gate = useContextGate(routeContextId, liveContextId, preflightRef);
+  const gateOk = !!routeContextId && gate?.id === routeContextId && gate.state === "ok";
 
   // --- History rail -----------------------------------------------------------
   useEffect(() => {
@@ -297,7 +385,8 @@ function ChatPageInner({
     const prev = prevRouteRef.current;
     prevRouteRef.current = routeContextId;
     if (routeContextId) {
-      if (liveContextId !== routeContextId) openContext(routeContextId);
+      // Only once the access gate has cleared the route's context.
+      if (gateOk && liveContextId !== routeContextId) openContext(routeContextId);
       return;
     }
     // `/app/chat`: on first mount, or when coming back from a conversation,
@@ -309,7 +398,7 @@ function ChatPageInner({
     }
     // `liveContextId` intentionally omitted: this effect reacts to the URL only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routeContextId, openContext, clearCurrent, createNew]);
+  }, [routeContextId, gateOk, openContext, clearCurrent, createNew]);
 
   // Store → URL: the first send on a draft materialises a context; once the
   // store has its id, move the URL to `/app/chat/<id>` without a remount.
@@ -382,13 +471,20 @@ function ChatPageInner({
       setRailOpen(false);
       if (id === liveContextId) return;
       setSwitchFailure(null);
-      // Switch immediately for snappiness; the route effect dedupes via the
-      // in-flight target ref once the URL catches up.
-      openContext(id);
+      // The route effect opens it once the access gate clears (one GET).
       router.push(chatHref(id));
     },
-    [liveContextId, openContext, router]
+    [liveContextId, router]
   );
+
+  const userEmail = useAuthStore((s) => s.user?.email ?? null);
+  const logout = useAuthStore((s) => s.logout);
+  const signInWithDifferentAccount = useCallback(() => {
+    const search = searchParams.toString();
+    const back = `${pathname}${search ? `?${search}` : ""}`;
+    logout();
+    router.replace(`/login?next=${encodeURIComponent(back)}`);
+  }, [logout, pathname, searchParams, router]);
 
   const removeConversation = useCallback(
     async (id: string) => {
@@ -411,13 +507,21 @@ function ChatPageInner({
   );
 
   // --- Derived view state -------------------------------------------------------
-  const failure =
-    switchFailure && switchFailure.id === routeContextId ? switchFailure : null;
+  const gateDenied =
+    routeContextId && gate?.id === routeContextId && gate.state === "denied" ? gate : null;
+  const failure: SwitchFailure | null = gateDenied
+    ? { id: routeContextId!, notFound: gateDenied.notFound, message: "" }
+    : routeContextId && gate?.id === routeContextId && gate.state === "error"
+      ? { id: routeContextId, notFound: false, message: gate.message }
+      : switchFailure && switchFailure.id === routeContextId
+        ? switchFailure
+        : null;
   const isNewChat = !routeContextId;
   const opening =
     !!routeContextId &&
     !failure &&
-    (liveContextId !== routeContextId ||
+    (!gateOk ||
+      liveContextId !== routeContextId ||
       (chat.status === "connecting" && chat.messages.length === 0));
   const showHero = isNewChat && chat.messages.length === 0 && !chat.pendingResponse;
 
@@ -488,7 +592,13 @@ function ChatPageInner({
         </header>
 
         {failure ? (
-          <NotFoundState notFound={failure.notFound} message={failure.message} onNew={goNewChat} />
+          <NotFoundState
+            notFound={failure.notFound}
+            message={failure.message}
+            userEmail={gateDenied ? userEmail : null}
+            onNew={goNewChat}
+            onSwitchAccount={gateDenied ? signInWithDifferentAccount : undefined}
+          />
         ) : opening ? (
           <OpeningSkeleton />
         ) : showHero ? (
@@ -626,31 +736,56 @@ function OpeningSkeleton() {
 function NotFoundState({
   notFound,
   message,
+  userEmail,
   onNew,
+  onSwitchAccount,
 }: {
   notFound: boolean;
   message: string;
+  /** Set when the access gate refused: names the account that was tried. */
+  userEmail: string | null;
   onNew: () => void;
+  /** Log out and come back to this exact URL with another account. */
+  onSwitchAccount?: () => void;
 }) {
+  const denied = !!onSwitchAccount;
+  const title = notFound
+    ? "Conversation not found"
+    : denied
+      ? "This conversation isn't available to this account"
+      : "Couldn't open this conversation";
+  const body = notFound
+    ? "It may have been deleted, or the link is wrong."
+    : denied
+      ? `You're signed in as ${userEmail ?? "this account"}, which can't open this conversation. ` +
+        "If it belongs to a different account, sign in with that one."
+      : message;
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 pb-16 text-center">
       <div className="bg-muted text-muted-foreground flex size-12 items-center justify-center rounded-2xl">
         <MessageSquare className="size-6" />
       </div>
       <div className="space-y-1">
-        <h2 className="font-display text-2xl font-semibold tracking-tight">
-          {notFound ? "Conversation not found" : "Couldn't open this conversation"}
-        </h2>
-        <p className="text-muted-foreground max-w-sm text-sm">
-          {notFound
-            ? "It may have been deleted, or you don't have access to it."
-            : message}
-        </p>
+        <h2 className="font-display text-2xl font-semibold tracking-tight">{title}</h2>
+        <p className="text-muted-foreground max-w-sm text-sm">{body}</p>
       </div>
-      <Button type="button" onClick={onNew} className="rounded-full">
-        <Plus className="size-4" />
-        New chat
-      </Button>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {onSwitchAccount && (
+          <Button type="button" onClick={onSwitchAccount} className="rounded-full">
+            <LogIn className="size-4" />
+            Sign in with a different account
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant={onSwitchAccount ? "outline" : "default"}
+          onClick={onNew}
+          className="rounded-full"
+        >
+          <Plus className="size-4" />
+          New chat
+        </Button>
+      </div>
     </div>
   );
 }

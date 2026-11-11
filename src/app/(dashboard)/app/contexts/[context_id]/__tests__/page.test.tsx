@@ -14,10 +14,7 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: (...a: unknown[]) => toastError(...a) },
 }));
 
-// Session dialogs pull in the chat/voice SDK UI; they only mount on demand.
-vi.mock("@/components/blocks/context-chat-session-dialog", () => ({
-  ContextChatSessionDialog: () => null,
-}));
+// The voice dialog pulls in the voice SDK UI; it only mounts on demand.
 vi.mock("@/components/blocks/context-voice-session-dialog", () => ({
   ContextVoiceSessionDialog: () => null,
 }));
@@ -87,6 +84,16 @@ describe("ContextDetailPage refresh", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Refresh" })[0]);
     await waitFor(() => expect(get).toHaveBeenCalledTimes(3));
     expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it("links the Chat button to the full chat page for text contexts", async () => {
+    get.mockResolvedValueOnce(context());
+    render(<ContextDetailPage />);
+    await screen.findByText("hello");
+
+    const chat = screen.getByRole("link", { name: "Chat" });
+    expect(chat).toHaveAttribute("href", "/app/chat/ctx1");
+    expect(screen.queryByRole("button", { name: "Voice call" })).toBeNull();
   });
 
   it("toasts and keeps the stale view when a refresh fails", async () => {

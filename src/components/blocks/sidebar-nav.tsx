@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, Wrench, Plug, Layers, FileText, FileJson2, FolderTree, KeyRound, BarChart3, MessagesSquare, Webhook, CreditCard, Building2, Phone } from "lucide-react";
+import { Bot, Wrench, Plug, Layers, FileText, FileJson2, FolderTree, KeyRound, BarChart3, MessagesSquare, MessageSquare, Webhook, CreditCard, Building2, Phone } from "lucide-react";
 import { Logo } from "@/components/primitives/logo";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +11,7 @@ const items: Array<{
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
+  { href: "/app/chat", label: "Chat", icon: MessageSquare },
   { href: "/app/agents", label: "Agents", icon: Bot },
   { href: "/app/tools", label: "Tools", icon: Wrench },
   { href: "/app/mcp-connections", label: "MCP Connections", icon: Plug },
@@ -51,8 +52,9 @@ export function SidebarNav({
       </Link>
       <nav className="flex flex-col gap-1">
         {items.map(({ href, label, icon: Icon }) => {
+          // Segment-aware: `/app/chat` must not light up `/app/chatter`.
           const active =
-            pathname === href || pathname.startsWith(href);
+            pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}

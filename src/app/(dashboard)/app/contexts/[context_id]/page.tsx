@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/primitives/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/blocks/copy-button";
-import { ContextChatSessionDialog } from "@/components/blocks/context-chat-session-dialog";
 import { ContextVoiceSessionDialog } from "@/components/blocks/context-voice-session-dialog";
 import { contextsApi } from "@/lib/api/contexts";
 import { getErrorMessage } from "@/lib/api/errors";
@@ -297,7 +296,7 @@ export default function ContextDetailPage() {
         session_model_id: sessionModelId,
         session_kind: isRealtime ? "voice" : "chat",
         session_open: sessionOpen,
-        note: "Context inspector. The user can reopen this context in a chat or voice session via the header button.",
+        note: "Context inspector. The header button opens this context in the full chat page (/app/chat/<context_id>) for text agents, or a voice session dialog for realtime agents.",
       },
       actions: {},
     }),
@@ -328,20 +327,31 @@ export default function ContextDetailPage() {
                   : undefined
               }
             >
-              <Button
-                variant="outline"
-                size="sm"
-                className="sm:h-9 sm:px-4"
-                disabled={!canOpen}
-                onClick={() => setSessionOpen(true)}
-              >
-                {isRealtime ? (
+              {isRealtime ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="sm:h-9 sm:px-4"
+                  disabled={!canOpen}
+                  onClick={() => setSessionOpen(true)}
+                >
                   <Mic className="size-4" />
-                ) : (
+                  Voice call
+                </Button>
+              ) : canOpen ? (
+                // Text contexts open in the full chat page.
+                <Button asChild variant="outline" size="sm" className="sm:h-9 sm:px-4">
+                  <Link href={`/app/chat/${context.context_id}`}>
+                    <MessageSquare className="size-4" />
+                    Chat
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="sm:h-9 sm:px-4" disabled>
                   <MessageSquare className="size-4" />
-                )}
-                {isRealtime ? "Voice call" : "Chat"}
-              </Button>
+                  Chat
+                </Button>
+              )}
             </span>
           </div>
         )}
@@ -438,27 +448,16 @@ export default function ContextDetailPage() {
         </>
       )}
 
-      {sessionOpen &&
-        context &&
-        (isRealtime ? (
-          <ContextVoiceSessionDialog
-            open={sessionOpen}
-            onOpenChange={handleSessionOpenChange}
-            contextId={context.context_id}
-            clientId={context.client_id ?? null}
-            agentName={agentName}
-          />
-        ) : (
-          <ContextChatSessionDialog
-            open={sessionOpen}
-            onOpenChange={handleSessionOpenChange}
-            contextId={context.context_id}
-            clientId={context.client_id ?? null}
-            agentId={context.agent_id}
-            agentName={agentName}
-            userDefined={context.user_defined}
-          />
-        ))}
+      {/* Only voice sessions open in a dialog; text contexts link to /app/chat. */}
+      {sessionOpen && context && isRealtime && (
+        <ContextVoiceSessionDialog
+          open={sessionOpen}
+          onOpenChange={handleSessionOpenChange}
+          contextId={context.context_id}
+          clientId={context.client_id ?? null}
+          agentName={agentName}
+        />
+      )}
     </div>
   );
 }

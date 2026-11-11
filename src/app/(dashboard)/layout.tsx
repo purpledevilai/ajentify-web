@@ -7,6 +7,20 @@ import { TopBar } from "@/components/blocks/top-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRequireAuth } from "@/lib/auth/use-require-auth";
 import { AjChatProvider, AjChatPanel } from "@/components/chat/aj-chat-shell";
+import { cn } from "@/lib/utils";
+
+/**
+ * Routes that fill the main column edge-to-edge and manage their own
+ * scrolling (no padding, no outer scrollbar). Everything else gets the
+ * default padded, scrollable `<main>`.
+ */
+const FULL_BLEED_PREFIXES = ["/app/chat"];
+
+function isFullBleed(pathname: string) {
+  return FULL_BLEED_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -58,7 +72,16 @@ export default function DashboardLayout({
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <TopBar />
           <AjChatPanel>
-            <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+            <main
+              className={cn(
+                "flex-1",
+                isFullBleed(pathname)
+                  ? "flex min-h-0 flex-col overflow-hidden"
+                  : "overflow-y-auto p-4 md:p-6"
+              )}
+            >
+              {children}
+            </main>
           </AjChatPanel>
         </div>
       </div>

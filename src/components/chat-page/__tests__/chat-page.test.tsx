@@ -227,8 +227,9 @@ describe("ChatPage — new chat (/app/chat)", () => {
 describe("ChatPage — existing conversation (/app/chat/[id])", () => {
   it("gates on GET /context first, then switches exactly once and shows a skeleton while connecting", async () => {
     nav.pathname = "/app/chat/ctx1";
-    let resolveGet!: (v: unknown) => void;
-    contextsGet.mockImplementation(() => new Promise((r) => (resolveGet = r)));
+    type Ctx = { context_id: string; org_id: string };
+    let resolveGet!: (v: Ctx) => void;
+    contextsGet.mockImplementation(() => new Promise<Ctx>((r) => (resolveGet = r)));
     const { rerender } = render(<ChatPage contextId="ctx1" />);
     // Gate pending: no SDK connect yet, skeleton shown.
     expect(contextsGet).toHaveBeenCalledWith("ctx1", true);

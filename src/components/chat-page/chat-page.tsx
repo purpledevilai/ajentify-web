@@ -354,18 +354,25 @@ function ChatPageInner({
   // --- Route → store sync ---------------------------------------------------
   const switchTargetRef = useRef<string | null>(null);
   const [switchFailure, setSwitchFailure] = useState<SwitchFailure | null>(null);
+  // Id of the context whose `switchTo` is still in flight (state, so effects
+  // can wait on it). `switchTo` reports `connected` *before* it hydrates the
+  // server messages; anything sent in that gap is wiped by the hydration.
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   const openContext = useCallback(
     (id: string) => {
       if (switchTargetRef.current === id) return;
       switchTargetRef.current = id;
+      setSwitchingId(id);
       switchTo(id)
         .then(() => {
           if (switchTargetRef.current === id) switchTargetRef.current = null;
+          setSwitchingId((cur) => (cur === id ? null : cur));
         })
         .catch((err: unknown) => {
           if (switchTargetRef.current !== id) return;
           switchTargetRef.current = null;
+          setSwitchingId((cur) => (cur === id ? null : cur));
           const status = apiStatusOf(err);
           setSwitchFailure({
             id,
@@ -441,15 +448,16 @@ function ChatPageInner({
     }
     const text = addMessage.text;
     if (!text) return;
-    // Wait until the URL's context is the live one and the socket is usable.
-    if (liveContextId !== routeContextId || !SENDABLE.has(chatStatus)) return;
+    // Wait until the URL's context is the live one, `switchTo` has fully
+    // resolved (incl. message hydration) and the socket is usable.
+    if (liveContextId !== routeContextId || switchingId !== null || !SENDABLE.has(chatStatus)) return;
     // Exactly once per (context, text) — survives re-renders and StrictMode.
     const key = `${routeContextId}:${text}`;
     if (addMessageSentRef.current === key) return;
     addMessageSentRef.current = key;
     void sendMessage(text).catch(() => {});
     router.replace(addMessage.strippedUrl);
-  }, [addMessage, routeContextId, liveContextId, chatStatus, sendMessage, router]);
+  }, [addMessage, routeContextId, liveContextId, switchingId, chatStatus, sendMessage, router]);
 
   // --- Actions -----------------------------------------------------------------
   const [railOpen, setRailOpen] = useState(false);

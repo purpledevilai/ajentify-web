@@ -24,6 +24,7 @@ const TYPE_OPTIONS: { value: SchemaType; label: string; hint: string }[] = [
   { value: "boolean", label: "boolean", hint: "True / false" },
   { value: "object", label: "object", hint: "Nested fields" },
   { value: "array", label: "array", hint: "List of items" },
+  { value: "edits", label: "edits", hint: "Text edits (replace / insert / delete)" },
 ];
 
 /** Standard JSON Schema `format` values most useful for tool params. The
@@ -144,6 +145,7 @@ export function FieldDetailsPanel({
             ))}
           </SelectContent>
         </Select>
+        {node.type === "edits" && <EditsTypeExplanation />}
       </div>
 
       <div className="space-y-1.5">
@@ -190,6 +192,38 @@ export function FieldDetailsPanel({
 }
 
 /* -------------------------------------------------------------------------- */
+/* `edits` pseudo-type explanation                                            */
+/* -------------------------------------------------------------------------- */
+
+function EditsTypeExplanation() {
+  return (
+    <div className="text-muted-foreground space-y-1.5 text-xs">
+      <p>
+        The agent passes an ordered list of edits, each{" "}
+        <code className="font-mono">
+          {"{operation, target | anchor, content}"}
+        </code>{" "}
+        with <code className="font-mono">operation</code> one of{" "}
+        <code className="font-mono">replace</code>,{" "}
+        <code className="font-mono">insert_before</code>,{" "}
+        <code className="font-mono">insert_after</code>,{" "}
+        <code className="font-mono">delete</code>. Targets and anchors must
+        match existing text exactly once. The schema is fixed; only the
+        description is yours.
+      </p>
+      <p>
+        Apply them in a Python tool with{" "}
+        <code className="font-mono">
+          new_text = aj_apply_edits(old_text, edits)
+        </code>
+        , or client-side with{" "}
+        <code className="font-mono">applyEdits(oldText, edits)</code>.
+      </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Default value editor                                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -201,8 +235,10 @@ function DefaultField({
   onChange: (patch: Partial<SchemaNode>) => void;
 }) {
   // Defaults for object / array are uncommon and easy to get wrong without
-  // a JSON editor — keep them out of the visual panel for now.
-  if (node.type === "object" || node.type === "array") return null;
+  // a JSON editor — keep them out of the visual panel for now. `edits` is
+  // a fixed contract and never has a default.
+  if (node.type === "object" || node.type === "array" || node.type === "edits")
+    return null;
 
   return (
     <div className="space-y-1.5">

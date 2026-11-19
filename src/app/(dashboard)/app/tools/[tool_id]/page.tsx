@@ -17,6 +17,7 @@ import { BuilderPageHeader } from "@/components/blocks/builder-page-header";
 import { BuilderSection } from "@/components/blocks/builder-section";
 import { ConfirmDialog } from "@/components/blocks/confirm-dialog";
 import { JsonSchemaEditor } from "@/components/blocks/json-schema-editor";
+import { editsParamNames } from "@/lib/constants/edits-schema";
 import { useToolBuilderStore } from "@/lib/stores/tool-builder-store";
 import { useToolsStore, toolsActions } from "@/lib/stores/tools-store";
 import {
@@ -336,6 +337,14 @@ export default function ToolBuilderPage() {
               </Button>
             </div>
           )}
+          {editsParamNames(form.schema).map((name) => (
+            <p key={name} className="text-muted-foreground text-xs">
+              Apply edits with:{" "}
+              <code className="font-mono">
+                new_text = aj_apply_edits(old_text, {name})
+              </code>
+            </p>
+          ))}
           <CodeEditor
             language="python"
             value={form.code}

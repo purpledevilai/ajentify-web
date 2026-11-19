@@ -6,6 +6,7 @@ export const DEFAULT_TOOL_CATEGORY_ORDER = [
   "Events",
   "Utility",
   "Agents",
+  "Agent Management",
   "Communication",
   "Memory",
   "Filesystem",
@@ -51,6 +52,11 @@ export const TOOL_CATEGORY_COPY: Record<
     title: "Delegate to other agents",
     description:
       "Let this agent hand work to other agents in your organization and carry on while they work. create_context starts a fresh conversation with another agent (by agent id) and returns its context_id; send_context_message drops a message into that conversation and runs it. With await_response set, the other agent's reply comes back later as a send_context_message_response tool result and this agent picks up where it left off — so it can delegate several tasks in parallel, keep talking to the user, and report back when answers land. Chats built with @ajentify/chat show the sub-agent's progress inline. Tell the agent in its prompt which agent ids it may delegate to and when to wait for a reply.",
+  },
+  "Agent Management": {
+    title: "Agent Management",
+    description:
+      "Let the agent inspect, create, edit and delete the agents of its organization — including itself: system prompt (via edits), model, tools, MCP connections, schedules and phone numbers. Powerful: an agent with these tools can change or delete other agents.",
   },
   Communication: {
     title: "Communication",

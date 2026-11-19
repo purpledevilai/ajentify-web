@@ -7,6 +7,7 @@ import {
   Brackets,
   ChevronDown,
   ChevronRight,
+  FileDiff,
   Hash,
   Plus,
   ToggleLeft,
@@ -329,6 +330,7 @@ function TypeIcon({ type }: { type: SchemaType }) {
   if (type === "number" || type === "integer")
     return <Hash className={cls} />;
   if (type === "string") return <Type className={cls} />;
+  if (type === "edits") return <FileDiff className={cls} />;
   return <AsteriskSquare className={cls} />;
 }
 

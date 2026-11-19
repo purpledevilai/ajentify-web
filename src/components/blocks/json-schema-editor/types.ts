@@ -18,7 +18,11 @@ export type SchemaType =
   | "integer"
   | "boolean"
   | "object"
-  | "array";
+  | "array"
+  /** Pseudo-type: a fixed array-of-edits schema (see
+   *  `@/lib/constants/edits-schema`). A leaf in the tree — its `items`
+   *  are canonical and not editable. */
+  | "edits";
 
 export interface SchemaNode {
   id: string;
@@ -108,6 +112,7 @@ export function makeNode(partial: Partial<SchemaNode> = {}): SchemaNode {
     base.minItems = partial.minItems;
     base.maxItems = partial.maxItems;
   }
+  // "edits" is a leaf: no children, no constraints beyond the canonical schema.
 
   return base;
 }

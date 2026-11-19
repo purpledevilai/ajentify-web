@@ -14,6 +14,11 @@ import {
   type SchemaNode,
   type SchemaType,
 } from "./types";
+import {
+  EDITS_TYPE_MARKER,
+  buildEditsSchema,
+  isEditsSchema,
+} from "@/lib/constants/edits-schema";
 
 /** Top-level + per-type JSON Schema keys we map onto explicit `SchemaNode`
  *  fields. Anything outside this list lands in `node.extra`. */
@@ -35,6 +40,8 @@ const KNOWN_KEYS = new Set([
   "minimum",
   "maximum",
   "multipleOf",
+  // Vendor marker for the `edits` pseudo-type — re-emitted by `nodeToSchema`.
+  EDITS_TYPE_MARKER,
 ]);
 
 function pickExtra(
@@ -72,7 +79,11 @@ export function schemaToNode(
   schema: Record<string, unknown>,
   isRequired = false
 ): SchemaNode {
-  const type = coerceType(schema.type);
+  // The `edits` pseudo-type is recognised by its marker, not by `type`
+  // (which is `array` on the wire). Its `items` are canonical and ignored.
+  const type: SchemaType = isEditsSchema(schema)
+    ? "edits"
+    : coerceType(schema.type);
   const node: SchemaNode = makeNode({
     name,
     type,
@@ -137,6 +148,12 @@ export function nodeToSchema(node: SchemaNode): Record<string, unknown> {
   // Preserve unknown keys first so explicit values below override them on
   // conflict — defensive in case `extra` was edited by hand.
   if (node.extra) Object.assign(out, node.extra);
+
+  if (node.type === "edits") {
+    // Fixed contract: always the canonical schema (marker included); only
+    // the description is user-controlled.
+    return Object.assign(out, buildEditsSchema(node.description));
+  }
 
   out.type = node.type;
   if (node.description) out.description = node.description;
